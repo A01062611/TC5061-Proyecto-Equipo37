@@ -1,0 +1,28 @@
+# Python environment
+.venv/
+
+# MiBici datasets
+data/raw/
+data/interim/
+data/processed/
+data/external/
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Serialized models
+*.pkl
+*.joblib
+
+__pycache__
+
+# MLflow local
+mlflow.db*
+mlruns/
+mlartifacts/
+
+# Local configuration
+.env
+.env.*
+.ipynb_checkpoints/
