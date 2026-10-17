@@ -2,6 +2,7 @@ ipython
 jupyterlab
 loguru
 matplotlib
+mlflow
 mkdocs
 notebook
 numpy
