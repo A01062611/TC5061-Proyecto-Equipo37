@@ -1,28 +1,44 @@
-# Python environment
-.venv/
-
-# MiBici datasets
-data/raw/
-data/interim/
-data/processed/
-data/external/
+# Data (MiBici trips and stations are never versioned)
+/data/
+*.csv
+*.parquet
 
 # MLflow
 mlruns/
 mlartifacts/
 
 # Serialized models
+/models/*
+!/models/.gitkeep
 *.pkl
 *.joblib
+*.onnx
 
-__pycache__
-
-# MLflow local
-mlflow.db*
-mlruns/
-mlartifacts/
-
-# Local configuration
+# Secrets
 .env
 .env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Jupyter
 .ipynb_checkpoints/
+
+# Tools
+.pytest_cache/
+.ruff_cache/
+.idea/
+.vscode/
+.DS_Store
+
+# Docs build
+/docs/site/
+
+# MLflow local store
+mlflow.db*
