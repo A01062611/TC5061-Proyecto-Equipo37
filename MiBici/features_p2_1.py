@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 import typer
 
-from MiBici.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from MiBici.config import PROCESSED_DATA_DIR, STATIONS_CSV, TRIPS_CSV
 
 app = typer.Typer()
 
@@ -49,10 +49,12 @@ PARAMS = {
 # Los parámetros del modelo y de la evaluación (hiperparámetros, semilla, k) están en
 # modeling/train_p2_1.py: no cambian la tabla, así que se ajustan sin regenerarla.
 CLASES = ["normal", "vaciado", "llenado"]
-NO_FEATURES = ["estacion", "dia", "particion", "clase"]  # `hora` sí es feature
+# `hora` sí es feature
+NO_FEATURES = ["estacion", "dia", "particion", "clase"]  
 
-TRIPS_P2_1 = RAW_DATA_DIR / "mibici_2024_2025.csv"
-STATIONS_P2_1 = RAW_DATA_DIR / "nomenclatura_2026_09.csv"
+TRIPS_P2_1 = TRIPS_CSV
+STATIONS_P2_1 = STATIONS_CSV
+
 OUT_DIR_P2_1 = PROCESSED_DATA_DIR / "p2_1"
 
 # Días de descanso obligatorio (art. 74 LFT), más el 1 de octubre de 2024 (transmisión del Poder Ejecutivo)
