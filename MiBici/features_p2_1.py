@@ -67,10 +67,14 @@ FESTIVOS = pd.to_datetime([
 # --------------------------------------------------------------------------- carga y limpieza
 
 def cargar_viajes(path: Path = TRIPS_P2_1) -> pd.DataFrame:
-    """Lee solo las columnas que usa P2.1; los datos personales no se cargan.
+    """Lee el CSV consolidado de viajes con solo las columnas que usa P2.1.
 
-    Se usa el motor C con un formato de fecha explícito: el motor pyarrow retiene ~2 GB
-    de memoria después de la lectura.
+    Carga `Viaje_Id`, las fechas de inicio y fin, y las estaciones de origen y
+    destino, convierte las fechas a datetime.
+
+    Para reconstruir el inventario solo importa cuándo y dónde sale o llega cada
+    bici. `Usuario_Id`, `Genero` y `Anio_de_nacimiento` no aportan a la pregunta y son
+    datos personales, así que no se cargan
     """
     trips = pd.read_csv(
         path,
@@ -83,15 +87,24 @@ def cargar_viajes(path: Path = TRIPS_P2_1) -> pd.DataFrame:
 
 
 def cargar_estaciones(path: Path = STATIONS_P2_1) -> pd.DataFrame:
+    """Lee la nomenclatura de estaciones: id, nombre, latitud, longitud y capacidad.
+
+    la capacidad Cₛ (`dpcapacity`) define qué significa "vacía" y "llena" y acota
+    el inventario reconstruido; la ubicación entra como feature de la estación.
+    """
     return pd.read_csv(path)
 
 
 def limpiar_viajes(trips: pd.DataFrame, stations: pd.DataFrame, dur_max_h: float) -> tuple[pd.DataFrame, dict]:
-    """Quita duraciones inválidas y estaciones fuera del catálogo.
+    """Quita los viajes que no representan un movimiento real de bicis.
 
-    Los viajes de menos de 1 min a la misma estación se conservan: su efecto neto es 0
-    y no mueven las cotas. Los viajes largos (hasta `dur_max_h`) también, porque su
-    salida y su llegada sí ocurrieron.
+    Elimina duraciones negativas o de 0 s, viajes de menos de 1 min entre
+    estaciones distintas (físicamente imposibles), viajes de más de `dur_max_h` horas
+    (bicis perdidas o recuperadas por el personal) y estaciones que no están en la
+    nomenclatura. Devuelve los viajes válidos y cuántos quitó cada regla.
+
+    Cada viaje se convierte en una salida y una llegada que mueven el inventario. 
+    Importante no tener datos erroneos que generen cambios de inventario que no ocurrieron.
     """
     dur = (trips["Fin_del_viaje"] - trips["Inicio_del_viaje"]).dt.total_seconds()
     misma = trips["Origen_Id"] == trips["Destino_Id"]
@@ -110,10 +123,20 @@ def limpiar_viajes(trips: pd.DataFrame, stations: pd.DataFrame, dur_max_h: float
 # --------------------------------------------------------------------------- eventos, cotas y ŝ₀
 
 def construir_eventos(trips: pd.DataFrame, params: dict) -> pd.DataFrame:
-    """Una fila por estación y segundo, ordenada por estación, día y hora.
+    """Convierte los viajes en eventos de inventario: una fila por estación y segundo.
 
-    Columnas: estacion, dia, ts, salida, llegada (conteos), delta (neto),
-    sd (id de estación-día) y acum (acumulado del día después del evento).
+    Cada viaje genera una salida (−1) en su origen a la hora de inicio y una
+    llegada (+1) en su destino a la hora de fin. A cada evento se le asigna su propio día
+    operativo (`ts − hora_reinicio`), así un viaje que termina después de medianoche cuenta
+    en el día de servicio correcto. Los eventos de una estación en el mismo segundo se
+    suman en un solo cambio neto. Devuelve, ordenado por estación, día y hora: `estacion`,
+    `dia`, `ts`, `salida` y `llegada`, `delta`, `sd` (id de estación-día)
+    y `acum` (acumulado del día después del evento).
+
+    El inventario de una estación solo cambia con estos eventos, así que son la
+    base de las cotas, la etiqueta y las features de demanda. El neto evita inventar un
+    pico que no se puede comprobar. Los conteos de salidas y llegadas se conservan
+    por separado para medir la demanda.
     """
     t5 = pd.Timedelta(hours=params["hora_reinicio"])
     n = len(trips)
@@ -134,11 +157,29 @@ def construir_eventos(trips: pd.DataFrame, params: dict) -> pd.DataFrame:
 
 
 def particion(dia: pd.Series, params: dict) -> np.ndarray:
+    """Asigna cada día operativo a "train", "val" o "test" según las fechas de corte.
+
+    La partición es temporal y con los mismos cortes para todas las estaciones,
+    para que el modelo nunca se evalúe con días anteriores a los que usó para entrenar.
+    Cada corte cae entre dos días operativos (de 01:00 a 05:00 no hay servicio), lo que
+    deja un hueco de ~4 h, mayor que el horizonte de 2 h.
+    """
     return np.select([dia <= params["train_fin"], dia <= params["val_fin"]], ["train", "val"], "test")
 
 
 def calcular_cotas(ev: pd.DataFrame, capacidad: pd.Series, params: dict) -> pd.DataFrame:
-    """Una fila por estación-día con eventos; la fila i corresponde a sd = i."""
+    """Cotas del inventario inicial por estación-día: L, U y si el día es infactible.
+
+    Con el acumulado del día calcula minimo y maximo. L = −minimo son las bicis que la 
+    estación necesitaba al inicio para no quedar en negativo, y U = Cₛ − maximo las que 
+    podía tener sin pasarse de su capacidad. Cualquier inventario inicial s con L ≤ s ≤ U 
+    hace posible el día. Si L > U el día se marca como infactible. Devuelve una fila 
+    por estación-día con eventos
+
+    Ya que los datos no traen inventario, las cotas son lo que los viajes permiten
+    deducir de él, y son la base de ŝ₀, del s₀ ajustado y del descarte de días
+    infactibles en la etiqueta.
+    """
     cotas = ev.groupby("sd").agg(
         estacion=("estacion", "first"),
         dia=("dia", "first"),
@@ -158,11 +199,16 @@ def calcular_cotas(ev: pd.DataFrame, capacidad: pd.Series, params: dict) -> pd.D
 
 
 def calcular_s0(c_train: pd.DataFrame, estaciones, capacidad: pd.Series, min_dias: int) -> pd.DataFrame:
-    """ŝ₀ por estación con los días de entrenamiento.
+    """Inventario inicial típico de cada estación (ŝ₀), calculado solo con entrenamiento.
 
-    El valor s ∈ [0, Cₛ] factible (L ≤ s ≤ U) en más días; empate → el más cercano a
-    Cₛ/2 y, a la misma distancia, el menor. Con menos de `min_dias` días, o sin días
-    de entrenamiento, ŝ₀ = ⌊Cₛ/2⌋.
+    Para cada s ∈ [0, Cₛ] cuenta en cuántos días de entrenamiento es factible
+    (L ≤ s ≤ U) y elige el más frecuente; en empate, el más cercano a Cₛ/2 y, a la misma
+    distancia, el menor. Con menos de `min_dias` días de entrenamiento, o sin ninguno
+    (estaciones nuevas), usa ⌊Cₛ/2⌋. Devuelve también el % de días factibles con ŝ₀ y con
+    ⌊Cₛ/2⌋ y el método usado, para el artefacto `s0_por_estacion.csv`.
+
+    Es el punto de partida del inventario estimado que alimenta las features.
+    No depende de los viajes del día que se predice, así que se puede usar en t.
     """
     filas = []
     for est, g in c_train.groupby("estacion"):
@@ -183,7 +229,12 @@ def calcular_s0(c_train: pd.DataFrame, estaciones, capacidad: pd.Series, min_dia
 
 
 def validar_proxy(cotas: pd.DataFrame, s0_est: pd.DataFrame) -> dict:
-    """% de días de validación en los que ŝ₀ (calculado con entrenamiento) sigue siendo factible."""
+    """Mide qué tan bien funciona ŝ₀ fuera de los días con los que se calculó.
+
+    Calcula el % de días en que ŝ₀ es factible, el mismo % con ⌊Cₛ/2⌋ como 
+    referencia y el % de días infactibles.
+
+    """
     cv = cotas[cotas["particion"] == "val"].join(s0_est["s0"], on="estacion")
     cs2 = cv["C"] // 2
     return {
@@ -197,7 +248,17 @@ def validar_proxy(cotas: pd.DataFrame, s0_est: pd.DataFrame) -> dict:
 # --------------------------------------------------------------------------- malla de 15 min y etiqueta
 
 def indices_malla(params: dict) -> dict:
-    """Intervalos por día, por hora, horas de predicción (KT) y largo de la ventana."""
+    """Índices de la malla de tiempo según la resolución y el horizonte.
+
+    Devuelve `NI` (intervalos por día operativo), `IPH` (intervalos por hora),
+    `KT` (intervalo en el que empieza cada hora de predicción: 05:00, 06:00, …) y `VENT`
+    (intervalos que cubre la ventana de la etiqueta). Falla si la resolución no divide a
+    60 min o si la última ventana se sale del día operativo.
+
+    Concentra en un solo lugar los números que dependen de `resolucion_min` y
+    `horizonte_h`, para que cambiarlos no deje índices fijos desalineados entre la
+    etiqueta y las features.
+    """
     res = params["resolucion_min"]
     if 60 % res:
         raise ValueError("resolucion_min debe dividir a 60")
@@ -211,10 +272,23 @@ def indices_malla(params: dict) -> dict:
 
 
 def malla_y_etiqueta(ev: pd.DataFrame, cotas: pd.DataFrame, s0_est: pd.DataFrame, params: dict) -> dict:
-    """Inventario sobre la malla (n_sd × NI) y etiqueta `clase` (n_sd × horas de predicción).
+    """Inventario en una malla de 15 min por estación-día y etiqueta `clase_riesgo_2h`.
 
-    Devuelve `ini` (acumulado al inicio de cada intervalo), `vacio` y `lleno` del
-    inventario reconstruido, `clase`, `fact`, `s0_hat` y `C`.
+    - Acomoda los eventos en una matriz (estación-día × intervalo) y calcula `ini`, el
+      acumulado al inicio de cada intervalo, junto con el mínimo y el máximo del acumulado
+      dentro de cada intervalo.
+    - Inventario reconstruido: parte de s₀ = clip(ŝ₀, L, U), que siempre es factible, y
+      marca cada intervalo como vacío (ocupación mínima ≤ `umbral_vacio`) o lleno
+      (ocupación máxima ≥ `umbral_lleno`).
+    - Etiqueta para cada hora t: revisa los intervalos de (t, t + `horizonte_h`]; si alguno
+      está vacío → vaciado (1), si alguno está lleno → llenado (2), si aparecen ambos gana
+      el que ocurre primero (en el mismo intervalo, vaciado); si ninguno → normal (0).
+    Devuelve `ini`, `vacio`, `lleno`, `clase`, `fact` (día factible), `s0_hat` y `C`.
+
+    La pregunta es si la estación quedará sin bicis o sin anclajes *en algún
+    momento* de las próximas 2 horas, no exactamente en t + 2 h; por eso se revisa toda la
+    ventana y el mínimo y el máximo dentro de cada intervalo. El s₀ ajustado usa los viajes
+    de todo el día, así que solo sirve para la etiqueta y nunca entra como feature.
     """
     m = indices_malla(params)
     NI, KT, VENT = m["NI"], m["KT"], m["VENT"]
@@ -262,9 +336,29 @@ def malla_y_etiqueta(ev: pd.DataFrame, cotas: pd.DataFrame, s0_est: pd.DataFrame
 # --------------------------------------------------------------------------- features y tabla horaria
 
 def construir_tabla(ev: pd.DataFrame, cotas: pd.DataFrame, stations: pd.DataFrame, malla: dict, params: dict) -> pd.DataFrame:
-    """Tabla de modelado: una fila por estación-día factible × hora de predicción.
+    """Tabla de modelado: una fila por estación-día factible × hora de predicción t.
 
-    Todas las features se calculan con información ≤ t.
+    - Estado actual (inventario estimado, que parte de ŝ₀ cada día):
+      `ocup_est` (bicis estimadas / Cₛ al inicio del intervalo de t; puede salir de [0, 1]
+      en días atípicos), `estado_est` (vacío/normal/lleno según los umbrales) y `tend_1h`
+      (cambio neto de bicis en la última hora; a las 05:00 vale 0).
+    - Demanda reciente: `sal_1h`, `lle_1h` (salidas y llegadas en [t−1h, t)) y `sal_2h`,
+      `lle_2h` (en [t−2h, t−1h)).
+    - Demanda estacional: `*_ayer_2h` (la misma ventana de 2 h de ayer), `*_sem_2h` (de hace
+      una semana) y `*_media7_2h` (promedio de los últimos 7 días).
+      Anticipan cuánta demanda habrá en (t, t+2h] con lo que pasó en esa misma
+      franja en días anteriores.
+    - Historial de riesgo: `frac_vacio_7d`, `frac_lleno_7d` (fracción de los 7 días
+      anteriores en que la estación se vació o se llenó) y `riesgo_ayer` (clase de ayer a la
+      misma hora).
+    - Calendario: `hora`, `dia_semana`, `fin_semana`, `festivo`.
+      El uso cambia mucho entre horas pico, fines de semana y festivos.
+    - Estación: `C`, `lat`, `lon`.
+      Por qué: la capacidad define qué tan rápido se llega a un extremo y la ubicación
+      resume el tipo de zona (residencial, laboral, recreativa).
+
+    También incluye `estacion`, `dia`, `particion` y `clase` (la etiqueta), que no son
+    features. Los días infactibles se descartan porque no tienen una etiqueta confiable.
     """
     KT, IPH, VENT = malla["KT"], malla["IPH"], malla["VENT"]
     ini, fact, s0_hat, C, clase = malla["ini"], malla["fact"], malla["s0_hat"], malla["C"], malla["clase"]
@@ -361,13 +455,28 @@ def construir_tabla(ev: pd.DataFrame, cotas: pd.DataFrame, stations: pd.DataFram
 
 
 def features_de(tabla: pd.DataFrame) -> list[str]:
+    """Columnas de la tabla que entran al modelo: todas menos identificadores, partición y etiqueta.
+
+    Un solo lugar define qué es feature, para que el entrenamiento, la evaluación
+    y cualquier predicción usen exactamente las mismas columnas y nunca la etiqueta.
+    """
     return [c for c in tabla.columns if c not in NO_FEATURES]
 
 
 # --------------------------------------------------------------------------- pipeline completo
 
 def construir_dataset(trips_path: Path, stations_path: Path, params: dict = PARAMS) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Viajes crudos → (tabla de modelado, ŝ₀ por estación, resumen del proceso)."""
+    """Pipeline completo de P2.1: CSV de viajes → tabla de modelado.
+
+    Carga y limpia los viajes, construye los eventos, calcula las cotas, ŝ₀, la validación 
+    del proxy, la malla con la etiqueta y la tabla con las features. Devuelve la tabla,
+    ŝ₀ por estación y un resumen (`info`) con los tamaños, lo que quitó cada regla de limpieza, 
+    el % de días infactibles, la validación del proxy y los parámetros usados.
+
+    Concentra en una sola llamada todo lo que necesita el entrenamiento, y el
+    resumen se guarda junto con la tabla para que los parámetros registrados en MLflow
+    sean los que de verdad generaron los datos.
+    """
     stations = cargar_estaciones(stations_path)
     capacidad = stations.set_index("id")["dpcapacity"]
 
@@ -411,6 +520,7 @@ def main(
     stations_path: Path = STATIONS_P2_1,
     out_dir: Path = OUT_DIR_P2_1,
 ):
+    """Construye la tabla de P2.1 y la guarda en `out_dir` (tabla.parquet, s0_por_estacion.csv e info.json)."""
     logger.info("P2.1: construyendo eventos, cotas, ŝ₀, etiqueta y features...")
     tabla, s0_est, info = construir_dataset(trips_path, stations_path)
     out_dir.mkdir(parents=True, exist_ok=True)
