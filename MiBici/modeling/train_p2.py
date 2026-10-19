@@ -1,19 +1,19 @@
-"""P2.1: baselines y modelo candidato de riesgo de vaciado/llenado, con runs en MLflow.
+"""P2: baselines y modelo candidato de riesgo de vaciado/llenado, con runs en MLflow.
 
 Genera tres runs en el experimento del equipo:
-  - P2.1 - Baseline persistencia      (umbrales sobre la ocupación estimada actual)
-  - P2.1 - Baseline perfil histórico  (frecuencia de clase por estación × día de la semana × hora)
-  - P2.1 - HistGradientBoosting       (multiclase con pesos por clase)
+  - P2 - Baseline persistencia      (umbrales sobre la ocupación estimada actual)
+  - P2 - Baseline perfil histórico  (frecuencia de clase por estación × día de la semana × hora)
+  - P2 - HistGradientBoosting       (multiclase con pesos por clase)
 
 Todo se evalúa en validación; la partición de prueba no se usa.
 
 Ejecución desde la raíz:
-  python -m MiBici.features_p2_1        # construye data/processed/p2_1/tabla.parquet
-  python -m MiBici.modeling.train_p2_1  # entrena, evalúa y registra en MLflow
+  python -m MiBici.features p2          # construye data/processed/p2/tabla.parquet
+  python -m MiBici.modeling.train_p2  # entrena, evalúa y registra en MLflow
 
 Los hiperparámetros, la semilla y k se pasan como opciones, sin regenerar la tabla:
-  python -m MiBici.modeling.train_p2_1 --max-iter 500 --learning-rate 0.05 --k-visitas 40
-  python -m MiBici.modeling.train_p2_1 --help
+  python -m MiBici.modeling.train_p2 --max-iter 500 --learning-rate 0.05 --k-visitas 40
+  python -m MiBici.modeling.train_p2 --help
 """
 
 import hashlib
@@ -47,12 +47,14 @@ from MiBici.config import (
     MLFLOW_TRACKING_URI,
     MODELS_DIR,
     PROJ_ROOT,
+    TRIPS_CSV,
 )
-from MiBici.features_p2_1 import CLASES, OUT_DIR_P2_1, TRIPS_P2_1, features_de
+from MiBici.features import CLASES_P2 as CLASES
+from MiBici.features import OUT_DIR_P2, features_de_p2
 
 app = typer.Typer()
 
-FIG_DIR = FIGURES_DIR / "p2_1"
+FIG_DIR = FIGURES_DIR / "p2"
 GRID_PERSISTENCIA = [(a, b) for a in np.arange(0.05, 0.45, 0.05) for b in np.arange(0.55, 0.96, 0.05)]
 TAUS = np.arange(0.05, 0.6, 0.025)
 # Valores por defecto del modelo y la evaluación; se pueden cambiar desde la línea de comandos
@@ -129,7 +131,7 @@ def baseline_persistencia(val: pd.DataFrame, y_val, k: int) -> dict:
     a, b = GRID_PERSISTENCIA[int(np.argmax(f2))]
     proba = np.column_stack([np.zeros_like(oc), 1 - oc, oc])  # puntajes, no probabilidades
     res = metricas(y_val, proba, pred_persistencia(oc, a, b)) | top_k(val, np.maximum(1 - oc, oc), k)
-    return {"nombre": "P2.1 - Baseline persistencia", "modelo": "persistencia", "proba": proba, "res": res,
+    return {"nombre": "P2 - Baseline persistencia", "modelo": "persistencia", "proba": proba, "res": res,
             "params": {"umbral_a": round(float(a), 2), "umbral_b": round(float(b), 2)}}
 
 
@@ -141,7 +143,7 @@ def baseline_perfil(train: pd.DataFrame, val: pd.DataFrame, y_train, y_val, k: i
     proba = val[claves].join(perfil, on=claves)[[0, 1, 2]].fillna(dict(enumerate(global_))).to_numpy()
     tau = ajustar_tau(y_val, proba)
     res = metricas(y_val, proba, pred_umbral(proba, tau)) | top_k(val, proba[:, 1] + proba[:, 2], k)
-    return {"nombre": "P2.1 - Baseline perfil histórico", "modelo": "perfil_historico", "proba": proba, "res": res,
+    return {"nombre": "P2 - Baseline perfil histórico", "modelo": "perfil_historico", "proba": proba, "res": res,
             "params": {"tau": tau, "claves_perfil": ",".join(claves)}}
 
 
@@ -154,7 +156,7 @@ def entrenar_hgb(train: pd.DataFrame, val: pd.DataFrame, y_train, y_val, feature
     proba = modelo.predict_proba(val[features])
     tau = ajustar_tau(y_val, proba)
     res = metricas(y_val, proba, pred_umbral(proba, tau)) | top_k(val, proba[:, 1] + proba[:, 2], k)
-    return {"nombre": "P2.1 - HistGradientBoosting", "modelo": "hist_gradient_boosting", "proba": proba, "res": res,
+    return {"nombre": "P2 - HistGradientBoosting", "modelo": "hist_gradient_boosting", "proba": proba, "res": res,
             "params": {"tau": tau} | {f"hgb_{p}": v for p, v in hgb_params.items()}, "estimador": modelo}
 
 
@@ -185,7 +187,7 @@ def plot_curvas_pr(y_val, modelos: list[dict]):
     for ax, c in zip(axes, (1, 2)):
         for m in modelos:
             p, r, _ = precision_recall_curve(y_val == c, m["proba"][:, c])
-            ax.plot(r, p, label=f"{m['nombre'].removeprefix('P2.1 - ')} (AP={m['res'][f'AP {CLASES[c]}']:.3f})")
+            ax.plot(r, p, label=f"{m['nombre'].removeprefix('P2 - ')} (AP={m['res'][f'AP {CLASES[c]}']:.3f})")
         ax.axhline((y_val == c).mean(), ls="--", c="grey", lw=0.8, label="prevalencia")
         ax.set(title=f"Curva PR · {CLASES[c]} (validación)", xlabel="recall", ylabel="precisión", xlim=(0, 1), ylim=(0, 1))
         ax.legend(fontsize=8)
@@ -237,10 +239,10 @@ def registrar_runs(modelos: list[dict], comunes: dict, tags: dict, metricas_comu
 
 @app.command()
 def main(
-    tabla_path: Path = OUT_DIR_P2_1 / "tabla.parquet",
-    info_path: Path = OUT_DIR_P2_1 / "info.json",
-    s0_path: Path = OUT_DIR_P2_1 / "s0_por_estacion.csv",
-    trips_path: Path = TRIPS_P2_1,
+    tabla_path: Path = OUT_DIR_P2 / "tabla.parquet",
+    info_path: Path = OUT_DIR_P2 / "info.json",
+    s0_path: Path = OUT_DIR_P2 / "s0_por_estacion.csv",
+    trips_path: Path = TRIPS_CSV,
     max_iter: int = HGB_PARAMS["max_iter"],
     learning_rate: float = HGB_PARAMS["learning_rate"],
     max_leaf_nodes: int = HGB_PARAMS["max_leaf_nodes"],
@@ -264,7 +266,7 @@ def main(
     }
 
     tabla = pd.read_parquet(tabla_path)
-    features = features_de(tabla)
+    features = features_de_p2(tabla)
     train = tabla[tabla["particion"] == "train"]
     val = tabla[tabla["particion"] == "val"]
     y_train, y_val = train["clase"].to_numpy(), val["clase"].to_numpy()
@@ -292,7 +294,7 @@ def main(
     logger.info(f"Resultados en validación (techo de recall@{k} = {techo:.3f}):\n{resultados.round(3).to_string()}")
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(modelos[-1]["estimador"], MODELS_DIR / "p2_1_hgb.joblib")
+    joblib.dump(modelos[-1]["estimador"], MODELS_DIR / "p2_hgb.joblib")
 
     if not registrar:
         return
@@ -310,7 +312,6 @@ def main(
     tags = {
         "equipo": "37",
         "pregunta": "P2",
-        "propuesta": "P2.1",
         "git_commit": commit,
         "git_worktree_clean": clean,
         "version_datos": datos_sha,
@@ -319,7 +320,7 @@ def main(
     artefactos = [FIG_DIR / "distribucion_clases.png", FIG_DIR / "curvas_pr_val.png",
                   FIG_DIR / "resultados_val.csv", s0_path, info_path]
     registrar_runs(modelos, comunes, tags, metricas_comunes, artefactos)
-    logger.success("Runs de P2.1 registrados en MLflow.")
+    logger.success("Runs de P2 registrados en MLflow.")
 
 
 if __name__ == "__main__":
