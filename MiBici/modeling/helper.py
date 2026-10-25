@@ -25,6 +25,7 @@ SKOPS_TRUSTED_TYPES = [
     "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
     "functools.partial",
     "sklearn.utils.validation.check_array",
+    "numpy.dtype",
 ]
 
 def setup_mlflow():
