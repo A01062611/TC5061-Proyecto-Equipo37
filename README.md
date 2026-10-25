@@ -17,6 +17,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Features](#features)
 - [Experimentos con el MLflow Project](#experimentos-con-el-mlflow-project)
 - [Reproducir desde un clon limpio](#reproducir-desde-un-clon-limpio)
+- [Model Registry](#model-registry)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
@@ -79,6 +80,7 @@ Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a
     ├── plots.py
     └── modeling/
         ├── train.py        <- punto de entrada del MLproject: despacha a cada pregunta
+        ├── register.py     <- Model Registry: registra el modelo elegido, su linaje y su alias
         ├── helper.py       <- MLflow compartido: servidor, nested runs y artefactos
         ├── train_p1.py     <- P1: baseline, Ridge, HistGradientBoosting y Random Forest
         ├── train_p2.py     <- P2: baselines, HistGradientBoosting y regresión logística
@@ -175,6 +177,7 @@ Todas las corridas se lanzan con `mlflow run` desde la raíz, con el servidor le
 | `train` | Entrena un modelo de una pregunta, o el modelo por defecto de todas | `question` (`p1`, `p2`, `p3` o `all`), `model` y sus hiperparámetros |
 | `search` | Búsqueda de hiperparámetros con nested runs: una corrida padre y una hija por combinación | `question`, `model` |
 | `main` | Ingesta, features y `train` con `question=all` | `question` |
+| `register` | Registra el modelo de un run en el Model Registry y le asigna un alias (ver [Model Registry](#model-registry)) | `question`, `run_id`, `alias` (`champion` o `challenger`) |
 
 Los hiperparámetros se pasan como `-P nombre=valor` y llegan con su tipo al modelo; un hiperparámetro que el modelo no conoce se rechaza o se ignora con un aviso:
 
@@ -196,6 +199,8 @@ mlflow run . -e search -P question=p2 -P model=hist_gradient_boosting --experime
 | P3 | `baseline`, `pca_kmeans` (por defecto), `agglomerative`, `gaussian_mixture` | `n_clusters`, `n_components`, `linkage`, `covariance_type`; en `pca_kmeans`, `n_clusters=0` elige k por silueta, Davies-Bouldin y concordancia con Ward | `pca_kmeans` (15), `agglomerative` (15), `gaussian_mixture` (20) |
 
 En P1, cada corrida de `train` abre un run padre de comparación con el baseline y los candidatos como runs hijos, y marca al ganador por MAE de validación con la etiqueta `selected_best_p1`.
+
+En P2 y P3, el run padre de cada búsqueda guarda la mejor combinación: la etiqueta `best_run_id` con el run de la mejor hija y la etiqueta `comando_candidato` con el `mlflow run` exacto para volver a entrenarla como `candidate`. P2 elige por `recall@20` y guarda también el AP de vaciado y de llenado de esa combinación (`best_val_ap_vaciado`, `best_val_ap_llenado`); P3 elige por el puntaje de silueta, ARI contra Ward y Davies-Bouldin. Las hijas de la búsqueda solo guardan métricas, sin modelo ni artefactos, así que para registrar la mejor combinación se corre `comando_candidato` y se registra el run candidato que resulta.
 
 ### Qué registra cada run
 
@@ -231,6 +236,48 @@ python -m MiBici.features p2                    # 2. tabla de P2 (opcional: trai
 | P1 | *Pendiente de la comparación en MLflow* | `mlflow run . -e train -P question=p1 -P model=<modelo> [-P hiperparámetros] --experiment-name mibici-equipo37 --env-manager local` |
 | P2 | *Pendiente de la comparación en MLflow* | `mlflow run . -e train -P question=p2 -P model=<modelo> [-P hiperparámetros] --experiment-name mibici-equipo37 --env-manager local` |
 | P3 | *Pendiente de la comparación en MLflow* | `mlflow run . -e train -P question=p3 -P model=<modelo> [-P hiperparámetros] --experiment-name mibici-equipo37 --env-manager local` |
+
+4. Registro del modelo de cada pregunta como `champion`, con el `run_id` de la corrida del paso 3 (ver [Model Registry](#model-registry)).
+
+## Model Registry
+
+El modelo elegido de cada pregunta se registra con el entry point `register`, desde el run donde se entrenó:
+
+```bash
+# modelo en producción
+mlflow run . -e register -P question=p2 -P run_id=<run del modelo elegido> \
+  --experiment-name mibici-equipo37 --env-manager local
+
+# opcional: el siguiente mejor
+mlflow run . -e register -P question=p2 -P run_id=<run del siguiente mejor> -P alias=challenger \
+  --experiment-name mibici-equipo37 --env-manager local
+```
+
+| Pregunta | Modelo registrado |
+|---|---|
+| P1 | `mibici-equipo37-p1-demanda` |
+| P2 | `mibici-equipo37-p2-riesgo` |
+| P3 | `mibici-equipo37-p3-grupos` |
+
+`register` hace, en un solo paso:
+
+1. Registra el modelo del run como una nueva versión. Si el run ya estaba registrado, reusa su versión en lugar de crear una repetida.
+2. Copia el linaje a la versión como etiquetas: `experimento`, `run_origen`, `git_commit`, `version_datos`, `pregunta` y `model_family`. MLflow liga la versión a su run de origen de forma automática, pero el commit y la versión de los datos son etiquetas del run y no se copian solas.
+3. Agrega una descripción al modelo registrado (qué predice y cuál es su métrica de negocio) y a la versión (run, commit y métricas de validación).
+4. Asigna el alias `champion` o `challenger` a la versión.
+5. Verifica que el modelo carga por `models:/<nombre>@<alias>` y que predice con su ejemplo de entrada. El resultado queda en `results/verificacion_carga.json` de un run con `stage_of_work=registry`.
+
+**Qué `run_id` usar:** el del run que tiene el modelo, que se ve en la sección *Logged models* del run. En P1 es el run hijo del candidato ganador (etiqueta `selected_best_p1`), no el run de comparación. Los baselines de P1 y P2 y el clustering jerárquico de P3 no tienen modelo registrado, y `register` lo rechaza con un mensaje.
+
+**Ciclo de vida: aliases en lugar de etapas.** Usamos el esquema de aliases: `champion` para la versión en producción y `challenger` para la siguiente mejor. Las etapas clásicas (`Staging`, `Production`) están marcadas como obsoletas desde MLflow 2.9. Además, un alias apunta a una versión exacta y se mueve sin crear versiones nuevas: para promover al challenger basta con volver a correr `register` con su `run_id` y `-P alias=champion`, y quien cargue `models:/<nombre>@champion` recibe la versión nueva sin cambiar su código.
+
+Para cargar el modelo en producción desde Python:
+
+```python
+import mlflow
+
+modelo = mlflow.pyfunc.load_model("models:/mibici-equipo37-p2-riesgo@champion")
+```
 
 ## Flujo de trabajo con Git
 

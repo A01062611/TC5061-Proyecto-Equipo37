@@ -69,6 +69,13 @@ def combinaciones(grid: dict) -> list[dict]:
     return [dict(zip(grid, valores)) for valores in itertools.product(*grid.values())]
 
 
+def comando_candidato(pregunta: str, model: str, params: dict) -> str:
+    """Comando de mlflow run que vuelve a entrenar una combinación como run candidate (con modelo y artefactos)."""
+    opciones = " ".join(f"-P {k}={'none' if v is None else v}" for k, v in params.items())
+    return (f"mlflow run . -e train -P question={pregunta} -P model={model} {opciones} "
+            f"--experiment-name {MLFLOW_EXPERIMENT} --env-manager local")
+
+
 @contextmanager
 def search_run(pregunta: str, model_family: str, etiquetas: dict):
     """Run padre de una búsqueda; cada combinación se registra como run hijo dentro de él."""
