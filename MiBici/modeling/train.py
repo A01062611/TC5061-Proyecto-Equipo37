@@ -14,11 +14,24 @@ class Question(str, Enum):
     all = "all"
 
 TRAINING_MODELS = {
-    Question.p1: train_p1,
     Question.p2: train_p2,
     Question.p3: train_p3,
-    Question.all: [train_p1, train_p2, train_p3]
+    Question.all: [train_p2, train_p3]
 }
+
+# Hiperparámetros que acepta run_p1 de P1, con su tipo
+P1_HYPERPARAMS = {"n_estimators": int, "max_depth": int, "min_samples_leaf": int, "n_jobs": int}
+
+
+def run_p1(model: str, hyperparams: dict, search: bool) -> None:
+    """Adapta el contrato de train.py a train_p1.run_p1 (que usa all/rf/hgb/ridge y un flag de búsqueda)."""
+    desconocidos = set(hyperparams) - set(P1_HYPERPARAMS)
+    if desconocidos:
+        raise typer.BadParameter(f"P1 solo acepta {sorted(P1_HYPERPARAMS)}; recibió {sorted(desconocidos)}")
+    kwargs = {k: P1_HYPERPARAMS[k](v) for k, v in hyperparams.items()}
+    train_p1.run_p1(model="all" if model == "none" else model, search=search, **kwargs)
+
+
 
 @app.command()
 def search(
@@ -28,10 +41,15 @@ def search(
     """Realiza una búsqueda de hiperparámetros para la pregunta y modelo especificados."""
     if question == Question.all:
         raise typer.BadParameter("La búsqueda se hace para una sola pregunta (p1, p2 o p3)")
-    
-    logger.info(f"Realizando búsqueda de hiperparámetros para {question.value}")
-    TRAINING_MODELS[question].search(model)
 
+    if question == Question.p1:
+        # solo busqueda con RF
+        logger.info("P1 solo tiene búsqueda de RF; se ignora model=...")
+        run_p1("rf", {}, search=True)
+    else:
+        logger.info(f"Realizando búsqueda de hiperparámetros para {question.value}")
+        TRAINING_MODELS[question].search(model)
+    
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def main(
@@ -45,11 +63,18 @@ def main(
 
     if question == Question.all:
         logger.info("Entrenando modelos para todas las preguntas con hiperparámetros default")
+
+        ## Correr p1
+        run_p1(model, {}, search=True)
+
         for train_func in TRAINING_MODELS[question]:
             train_func.main(model, {})
     else:
-        logger.info(f"Entrenando modelo para {question.value} con hiperparámetros: {hyperparams}")
-        TRAINING_MODELS[question].main(model, hyperparams)
+        if question == Question.p1:
+            run_p1(model, hyperparams, search=False)
+        else:
+            logger.info(f"Entrenando modelo para {question.value} con hiperparámetros: {hyperparams}")
+            TRAINING_MODELS[question].main(model, hyperparams)
 
     logger.info("Entrenamiento finalizado")
 

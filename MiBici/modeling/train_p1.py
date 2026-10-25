@@ -401,7 +401,7 @@ def registrar_experimentos(
   candidatos = []
   with mlflow.start_run(run_name="P1 - comparacion de candidatos") as padre:
     mlflow.set_tags({**etiquetas, "model_family": "multi", "stage_of_work": "comparison"})
-    mlflow.log_params({"model": model, "search": search})
+    mlflow.log_params({"modelo_p1": model, "search": search})
 
     with mlflow.start_run(run_name="P1 - Baseline semanal", nested=True):
       registrar_contexto("baseline_semanal", "baseline", {"lag_dias": 7}, contexto, etiquetas)
