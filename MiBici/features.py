@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import typer
 
-from MiBici.config import PROCESSED_DATA_DIR, STATIONS_CSV, TRIPS_CSV
+from MiBici.config import FECHA_INICIO, TRAIN_FIN, VALIDATION_FIN, PROCESSED_DATA_DIR, STATIONS_CSV, TRIPS_CSV
 
 app = typer.Typer(help="Construye las features de P2 y P3. Sin subcomando, corre las dos.")
 
@@ -110,10 +110,10 @@ def particion(dia: pd.Series, params: dict) -> np.ndarray:
 # ==========================================================================================
 
 PARAMS_P2 = {
-    "fecha_inicio": "2024-01-01",
+    "fecha_inicio": FECHA_INICIO,
     "fecha_fin": "2025-12-30",  # último día operativo completo
-    "train_fin": "2025-06-30",
-    "val_fin": "2025-09-30",
+    "train_fin": TRAIN_FIN,
+    "val_fin": VALIDATION_FIN,
     "hora_reinicio": 5,  # día operativo = timestamp − 5 h
     "dur_max_h": 24,
     "empates": "neto",  # eventos de una estación en el mismo segundo se suman

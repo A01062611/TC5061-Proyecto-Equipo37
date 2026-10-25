@@ -1,0 +1,40 @@
+name: MiBici
+
+python_env: python_env.yaml
+
+entry_points:
+  main:
+    parameters:
+      question : {type: string, default: all}
+    command: >-
+      python -m MiBici.dataset
+      && python -m MiBici.features
+      && python -m MiBici.modeling.train main
+      --question {question}
+
+  ingest:
+    parameters:
+      desde: {type: string, default: "2024-01"}
+      hasta: {type: string, default: "2025-12"}
+    command: >-
+      python -m MiBici.dataset 
+      --desde {desde} 
+      --hasta {hasta}
+
+  train:
+    parameters:
+      question : {type: string, default: all}
+      model: {type: string, default: none}
+    command: >-
+      python -m MiBici.modeling.train main
+      --question {question}
+      --model {model}
+
+  search:
+    parameters:
+      question : {type: string, default: "p1"}
+      model: {type: string, default: none}
+    command: >-
+      python -m MiBici.modeling.train search
+      --question {question}
+      --model {model}

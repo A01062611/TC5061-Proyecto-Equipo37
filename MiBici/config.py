@@ -2,7 +2,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
-
+import os
 # Load environment variables from .env file if it exists
 load_dotenv()
 
@@ -26,13 +26,15 @@ TRIPS_CSV = INTERIM_DATA_DIR / "mibici_2024_2025.csv"
 STATIONS_CSV = INTERIM_DATA_DIR / "nomenclatura_2026_09.csv"
 FECHA_INICIO = "2024-01-01"
 FECHA_FIN = "2025-12-31"
+TRAIN_FIN = "2025-06-30"
+VALIDATION_FIN = "2025-09-30"
 
 # Reproducibility
 SEED = 42
 
 # MLflow
 MLFLOW_EXPERIMENT = "mibici-equipo37"
-MLFLOW_TRACKING_URI = f"sqlite:///{(PROJ_ROOT / 'mlflow.db').as_posix()}"
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{(PROJ_ROOT / 'mlflow.db').as_posix()}")
 MLFLOW_ARTIFACT_DIR = PROJ_ROOT / "mlruns" / MLFLOW_EXPERIMENT
 
 # If tqdm is installed, configure loguru with tqdm.write
