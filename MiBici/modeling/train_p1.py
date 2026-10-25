@@ -324,14 +324,22 @@ def entrenar_candidato(
     argumentos_modelo = {
       "sk_model": modelo,
       "signature": firma,
-      "input_example": ejemplo
+      "input_example": ejemplo,
+      "serialization_format": "skops"
     }
-    # Compatibilidad con MLflow 2.x (artifact_path) y 3.x (name).
     parametro_ruta = (
       "name" if "name" in inspect.signature(mlflow.sklearn.log_model).parameters
       else "artifact_path"
     )
     argumentos_modelo[parametro_ruta] = "model"
+    if nombre == "hist_gradient_boosting":
+      argumentos_modelo["skops_trusted_types"] = [
+        "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor"
+      ]
+    elif nombre == "random_forest":
+      argumentos_modelo["skops_trusted_types"] = [
+        "sklearn.tree._tree.Tree"
+      ]
     info_modelo = mlflow.sklearn.log_model(**argumentos_modelo)
     print(
       f"{nombre}: MAE={metricas['mae']:.4f}, "
