@@ -12,18 +12,21 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Datos](#datos)
 - [Estructura del repositorio](#estructura-del-repositorio)
 - [Instalación](#instalación)
+- [Servidor de MLflow](#servidor-de-mlflow)
 - [Ingesta de datos](#ingesta-de-datos)
-- [Experimento base](#experimento-base)
+- [Features](#features)
+- [Experimentos con el MLflow Project](#experimentos-con-el-mlflow-project)
+- [Reproducir desde un clon limpio](#reproducir-desde-un-clon-limpio)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
 ## Preguntas
 
-| | Pregunta | Tarea | Unidad | Baseline | Modelo candidato | Métricas |
+| | Pregunta | Tarea | Unidad | Baseline | Modelos comparados | Métricas |
 |---|---|---|---|---|---|---|
-| **P1** | ¿Cuántos viajes se iniciarán en una estación el día siguiente? | Regresión | Estación × día | Mismo día de la semana anterior | Random Forest | MAE, RMSE |
-| **P2** | ¿Una estación estará en riesgo de quedarse sin bicicletas o sin anclajes en las próximas 2 horas? | Clasificación multiclase (`normal` / `vaciado` / `llenado`) | Estación × hora | Persistencia de la ocupación estimada; perfil histórico por estación × día × hora | HistGradientBoosting multiclase con pesos por clase | PR-AUC por clase, recall@k y precision@k por hora, F2, Brier |
-| **P3** | ¿Qué grupos de estaciones comparten patrones de uso y dónde se ubican? | Clustering | Estación | K-Means con k fijo, sin PCA | PCA + K-Means (contraste con Ward) | Silueta, Davies-Bouldin, ARI |
+| **P1** | ¿Cuántos viajes se iniciarán en una estación el día siguiente? | Regresión | Estación × día | Mismo día de la semana anterior | Random Forest, HistGradientBoosting, Ridge | MAE, RMSE |
+| **P2** | ¿Una estación estará en riesgo de quedarse sin bicicletas o sin anclajes en las próximas 2 horas? | Clasificación multiclase (`normal` / `vaciado` / `llenado`) | Estación × hora | Persistencia de la ocupación estimada; perfil histórico por estación × día × hora | HistGradientBoosting multiclase con pesos por clase, regresión logística | PR-AUC por clase, recall@k y precision@k por hora, F2, Brier |
+| **P3** | ¿Qué grupos de estaciones comparten patrones de uso y dónde se ubican? | Clustering | Estación | K-Means con k fijo, sin PCA | PCA + K-Means, clustering jerárquico, mezcla de gaussianas | Silueta, Davies-Bouldin, ARI |
 
 Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a partir de los viajes y la capacidad de cada estación (ver el docstring de `MiBici/features.py`).
 
@@ -51,10 +54,14 @@ Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a
 ## Estructura del repositorio
 
 ```
+├── MLproject               <- MLflow Project: entry points ingest, train, search y main
+├── python_env.yaml         <- entorno del MLflow Project (mismas versiones que requirements.txt)
+├── .env.example            <- variables de MLflow; copiar a .env
 ├── Makefile                <- make data, make lint, make format, make test
 ├── README.md
 ├── pyproject.toml          <- metadatos del paquete MiBici y configuración de ruff
 ├── requirements.txt        <- dependencias (incluye el paquete en modo editable: -e .)
+├── mlflow.db, mlartifacts/ <- base y artefactos del servidor de MLflow (no se versionan)
 ├── data/                   <- no se versiona en Git
 │   ├── raw/mensuales/      <- CSV mensuales y nomenclatura, tal como se descargan
 │   ├── interim/            <- CSV consolidado y normalizado (lo genera dataset.py)
@@ -71,9 +78,11 @@ Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a
     ├── features.py         <- feature engineering por secciones: común, P2 y P3
     ├── plots.py
     └── modeling/
-        ├── train_p1.py     <- P1: baseline y Random Forest
-        ├── train_p2.py     <- P2: baselines y HistGradientBoosting
-        └── train_p3.py     <- P3: K-Means y PCA + K-Means
+        ├── train.py        <- punto de entrada del MLproject: despacha a cada pregunta
+        ├── helper.py       <- MLflow compartido: servidor, nested runs y artefactos
+        ├── train_p1.py     <- P1: baseline, Ridge, HistGradientBoosting y Random Forest
+        ├── train_p2.py     <- P2: baselines, HistGradientBoosting y regresión logística
+        └── train_p3.py     <- P3: K-Means, PCA + K-Means, jerárquico y mezcla de gaussianas
 ```
 
 ## Instalación
@@ -95,13 +104,45 @@ Para comprobar la instalación (desde cualquier carpeta):
 python -c "import MiBici.config as c; print(c.TRIPS_CSV)"
 ```
 
+Todo el equipo debe usar la misma versión de MLflow (la de `requirements.txt`). Una base `mlflow.db` creada con una versión más nueva no abre con una más vieja: MLflow responde `out-of-date database schema` y `mlflow db upgrade` no la puede migrar.
+
+## Servidor de MLflow
+
+El Model Registry necesita una base de datos, así que los runs se registran en un servidor local respaldado por SQLite. El servidor se levanta **desde la raíz del repositorio** (`sqlite:///mlflow.db` es relativo a la carpeta actual) y se deja corriendo en su propia terminal:
+
+```bash
+mlflow server --backend-store-uri sqlite:///mlflow.db --port 5000
+```
+
+La interfaz queda en http://localhost:5000. La primera vez, el servidor crea `mlflow.db` y guarda los artefactos en `mlartifacts/`; ninguno de los dos se versiona.
+
+En cada terminal donde se lancen corridas hay que apuntar a ese servidor y al experimento del equipo:
+
+```bash
+cp .env.example .env              # una sola vez
+set -a; source .env; set +a       # en cada terminal nueva
+```
+
+`.env` define `MLFLOW_TRACKING_URI=http://localhost:5000` y `MLFLOW_EXPERIMENT_NAME=mibici-equipo37`. El equivalente sin `.env` es:
+
+```bash
+export MLFLOW_TRACKING_URI=http://localhost:5000
+export MLFLOW_EXPERIMENT_NAME=mibici-equipo37
+```
+
+`MLFLOW_TRACKING_URI` tiene que estar en la terminal, no solo en `.env`: `mlflow run` crea el run del proyecto antes de ejecutar nuestro código y solo lee el entorno. Sin ella, `mlflow run` escribe en una base local distinta y la corrida falla al no encontrar su run en el servidor. Si no está definida, el código usa `sqlite:///mlflow.db` en la raíz del repositorio (`MiBici/config.py`).
+
+**Todas las corridas con `mlflow run` llevan `--experiment-name mibici-equipo37`**, como en los comandos de este README. Sin esa opción, `mlflow run` crea el run en el experimento `Default`, el código lo busca en `mibici-equipo37` y la corrida falla con `Cannot start run with ID ... because active experiment ID does not match environment run ID`. `MLFLOW_EXPERIMENT_NAME` en la terminal tiene el mismo efecto que la opción, pero es mejor escribirla en el comando para que quede explícito.
+
 ## Ingesta de datos
 
 Un solo comando descarga y prepara los datos, sin pasos manuales:
 
 ```bash
-python -m MiBici.dataset          # o: make data
+mlflow run . -e ingest --experiment-name mibici-equipo37 --env-manager local    # o: python -m MiBici.dataset, make data
 ```
+
+`ingest` acepta `-P desde=aaaa-mm` y `-P hasta=aaaa-mm` (por defecto, `2024-01` a `2025-12`).
 
 1. Descarga los 24 CSV mensuales y la nomenclatura a `data/raw/mensuales/` (si ya existen, no se vuelven a descargar).
 2. Normaliza la codificación (los meses vienen en UTF-8 o en latin-1), los nombres de columna y las fechas (septiembre y octubre de 2024 vienen como `dd/mm/aaaa h:mm`).
@@ -114,9 +155,9 @@ Tarda alrededor de un minuto con los archivos ya descargados. Para comprobar que
 python -m MiBici.dataset --solo-verificar
 ```
 
-## Experimento base
+## Features
 
-Las features se construyen con `MiBici/features.py` y quedan en `data/processed/`. P2 necesita su tabla antes de entrenar; P3 calcula el perfil dentro de `train_p3`, así que `features p3` solo sirve para revisarlo:
+Las features se construyen con `MiBici/features.py` y quedan en `data/processed/`. P2 necesita su tabla antes de entrenar (si no existe, `train_p2` la genera); P3 calcula el perfil dentro de `train_p3`, así que `features p3` solo sirve para revisarlo:
 
 ```bash
 python -m MiBici.features         # P2 y P3
@@ -124,26 +165,72 @@ python -m MiBici.features p2      # solo P2 → data/processed/p2/ (tabla.parque
 python -m MiBici.features p3      # solo P3 → data/processed/p3_station_profile.csv
 ```
 
-Después se corren los experimentos. Todos los runs se registran en el experimento **`mibici-equipo37`** de MLflow (configuración en `MiBici/config.py`). Cada run guarda los parámetros para reproducirlo (incluidos el rango de fechas y la versión de los datos), las métricas propuestas, artefactos (gráficas y tablas) y las etiquetas `equipo`, `pregunta` y `git_commit`.
+## Experimentos con el MLflow Project
+
+Todas las corridas se lanzan con `mlflow run` desde la raíz, con el servidor levantado, `MLFLOW_TRACKING_URI` en la terminal y la opción `--experiment-name mibici-equipo37` (ver [Servidor de MLflow](#servidor-de-mlflow)). Todos los runs quedan en el experimento **`mibici-equipo37`**.
+
+| Entry point | Qué hace | Parámetros |
+|---|---|---|
+| `ingest` | Descarga y consolida los datos (`dataset.py`) | `desde`, `hasta` |
+| `train` | Entrena un modelo de una pregunta, o el modelo por defecto de todas | `question` (`p1`, `p2`, `p3` o `all`), `model` y sus hiperparámetros |
+| `search` | Búsqueda de hiperparámetros con nested runs: una corrida padre y una hija por combinación | `question`, `model` |
+| `main` | Ingesta, features y `train` con `question=all` | `question` |
+
+Los hiperparámetros se pasan como `-P nombre=valor` y llegan con su tipo al modelo; un hiperparámetro que el modelo no conoce se rechaza o se ignora con un aviso:
 
 ```bash
-# P1: baseline semanal y Random Forest
-python -m MiBici.modeling.train_p1
-
-# P2: baselines (persistencia y perfil histórico) y HistGradientBoosting; lee data/processed/p2/
-python -m MiBici.modeling.train_p2            # --help para ver hiperparámetros, semilla y k
-
-# P3: K-Means base y PCA + K-Means
-python -m MiBici.modeling.train_p3
+mlflow run . -e train -P question=p1 -P model=rf -P n_estimators=300 --experiment-name mibici-equipo37 --env-manager local
+mlflow run . -e train -P question=p2 -P model=hist_gradient_boosting -P learning_rate=0.05 --experiment-name mibici-equipo37 --env-manager local
+mlflow run . -e train -P question=p3 -P model=pca_kmeans -P n_clusters=6 --experiment-name mibici-equipo37 --env-manager local
+mlflow run . -e search -P question=p2 -P model=hist_gradient_boosting --experiment-name mibici-equipo37 --env-manager local
 ```
 
-Para ver los runs:
+`--env-manager local` usa el entorno ya instalado; sin esa opción, MLflow crea uno nuevo a partir de `python_env.yaml`.
 
-```bash
-mlflow ui --backend-store-uri "sqlite:///mlflow.db"   # desde la raíz; abrir http://127.0.0.1:5000
-```
+### Modelos por pregunta
+
+| Pregunta | `model` | Hiperparámetros por `-P` | Búsqueda (`-e search`) |
+|---|---|---|---|
+| P1 | `all` (por defecto: baseline y los tres candidatos), `rf`, `hgb`, `ridge` | `n_estimators`, `max_depth`, `min_samples_leaf`, `n_jobs` (Random Forest) | Random Forest, 4 combinaciones alrededor de los valores dados |
+| P2 | `baseline` (persistencia y perfil histórico), `hist_gradient_boosting` (por defecto), `logistic_regression` | Los de `DEFAULT_HYPERPARAMS` en `train_p2.py`, por ejemplo `learning_rate`, `max_leaf_nodes`, `C`, `class_weight` | `hist_gradient_boosting` (8 combinaciones, unos 20 minutos) o `logistic_regression` (6) |
+| P3 | `baseline`, `pca_kmeans` (por defecto), `agglomerative`, `gaussian_mixture` | `n_clusters`, `n_components`, `linkage`, `covariance_type`; en `pca_kmeans`, `n_clusters=0` elige k por silueta, Davies-Bouldin y concordancia con Ward | `pca_kmeans` (15), `agglomerative` (15), `gaussian_mixture` (20) |
+
+En P1, cada corrida de `train` abre un run padre de comparación con el baseline y los candidatos como runs hijos, y marca al ganador por MAE de validación con la etiqueta `selected_best_p1`.
+
+### Qué registra cada run
+
+- **Etiquetas** para filtrar en la interfaz: `stage_of_work` (`baseline`, `search` o `candidate`), `model_family`, la pregunta (`pregunta` en P2 y P3, `question` en P1), `equipo`, `git_commit` y la versión de los datos.
+- **Parámetros** para reproducirlo, incluidos el rango de fechas, la partición y el SHA-256 de los datos.
+- **Artefactos**, organizados en subcarpetas:
+
+| Carpeta | Contenido |
+|---|---|
+| `data/` | Manifiesto de la ingesta (`data_manifest.json`); en P2, también `info.json` y `s0_por_estacion.csv` |
+| `config/` | `run_config.json` con la pregunta, el modelo y los hiperparámetros; en P2 y P3, también `MLproject`, `python_env.yaml` y `config.py` |
+| `plots/` | P1: real contra predicho y residuales. P2: matriz de confusión, curvas precisión-recall y distribución de clases. P3: mapa y perfiles de los grupos |
+| `results/` | P2 y P3: tablas de resultados (métricas de validación, estaciones por grupo, selección de k). P1 guarda su resumen de candidatos en `config/p1_resultados.json` del run de comparación |
+
+- **Modelo** con `log_model`, firma y ejemplo de entrada. En MLflow 3 aparece en la sección *Logged models* del run, no como carpeta de artefactos. El baseline de P1 y el de P2 son reglas, no modelos entrenados, y el clustering jerárquico de P3 no tiene `predict`, así que esos runs no registran modelo.
+- **Conjunto de entrenamiento** con `mlflow.log_input` (P2 y P3): siempre la tabla agregada, nunca los viajes individuales.
 
 Haz commit antes de correr un experimento: así el `git_commit` registrado corresponde al código que generó el run y `git_worktree_clean` queda en `true`.
+
+## Reproducir desde un clon limpio
+
+Con la [instalación](#instalación) hecha, el servidor levantado y las variables en la terminal:
+
+```bash
+mlflow run . -e ingest --experiment-name mibici-equipo37 --env-manager local      # 1. datos y manifiesto
+python -m MiBici.features p2                    # 2. tabla de P2 (opcional: train_p2 la genera si falta)
+```
+
+3. Modelo elegido de cada pregunta:
+
+| Pregunta | Modelo elegido | Comando |
+|---|---|---|
+| P1 | *Pendiente de la comparación en MLflow* | `mlflow run . -e train -P question=p1 -P model=<modelo> [-P hiperparámetros] --experiment-name mibici-equipo37 --env-manager local` |
+| P2 | *Pendiente de la comparación en MLflow* | `mlflow run . -e train -P question=p2 -P model=<modelo> [-P hiperparámetros] --experiment-name mibici-equipo37 --env-manager local` |
+| P3 | *Pendiente de la comparación en MLflow* | `mlflow run . -e train -P question=p3 -P model=<modelo> [-P hiperparámetros] --experiment-name mibici-equipo37 --env-manager local` |
 
 ## Flujo de trabajo con Git
 
