@@ -38,3 +38,14 @@ entry_points:
       python -m MiBici.modeling.train search
       --question {question}
       --model {model}
+
+  register:
+    parameters:
+      question: {type: string}
+      run_id: {type: string}
+      alias: {type: string, default: champion}
+    command: >-
+      python -m MiBici.modeling.register
+      --question {question}
+      --run-id {run_id}
+      --alias {alias}

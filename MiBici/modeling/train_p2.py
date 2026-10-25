@@ -53,7 +53,9 @@ from MiBici.config import (
     TRIPS_CSV,
     SEED
 )
-from MiBici.modeling.helper import convert_params_type, combinaciones, search_run, child_run, setup_mlflow, log_run_artifacts
+from MiBici.modeling.helper import (
+    convert_params_type, combinaciones, comando_candidato, search_run, child_run, setup_mlflow, log_run_artifacts,
+)
 from MiBici.features import CLASES_P2 as CLASES
 from MiBici.features import OUT_DIR_P2, features_de_p2
 
@@ -272,16 +274,26 @@ def search_model(model, train, val, tags, comunes, grid: dict = SEARCH_GRIDS, fe
         mlflow.log_dict(grid, "grid.json")
         for combinacion in combinaciones(grid):
             params = DEFAULT_HYPERPARAMS[model] | combinacion
-            with child_run("P2", model, params, tags):
+            with child_run("P2", model, params, tags) as hija:
                 mlflow.log_params(comunes)
                 models = train_model(model, train, val, y_train, y_val, features, K_VISITAS, SEED, params)
                 valores = {nombre_metrica(n): float(v) for n, v in models["res"].items()}
                 mlflow.log_metrics(valores)
                 mlflow.log_param("tau", models["params"]["tau"])
-            resultados.append({**combinacion, **valores})
+            resultados.append({"run_id": hija.info.run_id, **combinacion, **valores})
 
+        # recall@k es la métrica de negocio; el AP por clase se guarda para revisar que no empeore
         mejor = max(resultados, key=lambda r: r[f"val_recall_at_{k}"])
-        mlflow.log_metrics({f"best_val_recall_at_{k}": mejor[f"val_recall_at_{k}"]})
+        mlflow.log_metrics({
+            f"best_val_recall_at_{k}": mejor[f"val_recall_at_{k}"],
+            "best_val_ap_vaciado": mejor["val_ap_vaciado"],
+            "best_val_ap_llenado": mejor["val_ap_llenado"],
+        })
+        mlflow.set_tags({
+            "best_run_id": mejor["run_id"],
+            # las hijas no guardan modelo: la mejor combinación se vuelve a correr como candidate para registrarla
+            "comando_candidato": comando_candidato("p2", model, {p: mejor[p] for p in grid}),
+        })
         mlflow.log_dict(mejor, "mejor_combinacion.json")
         mlflow.log_table(pd.DataFrame(resultados), "resultados_busqueda.json")
 

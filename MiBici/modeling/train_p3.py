@@ -44,6 +44,7 @@ from MiBici.config import (
 from MiBici.modeling.helper import (
     child_run,
     combinaciones,
+    comando_candidato,
     convert_params_type,
     log_run_artifacts,
     search_run,
@@ -329,14 +330,14 @@ def search(model: str = "none") -> None:
         mlflow.log_dict(grid, "grid.json")
         for combination in combinaciones(grid):
             params = DEFAULT_HYPERPARAMS[model] | combination
-            with child_run("P3", model, params, tags):
+            with child_run("P3", model, params, tags) as child:
                 mlflow.log_params(base_params)
                 cluster_labels, logged_params, extra, _, _ = fit_model(model, X_std, params)
                 metrics = evaluate(X_std, cluster_labels, logged_params["k"]) | extra
                 mlflow.log_metrics(metrics)
             logger.info(f"{combination}: silueta={metrics['train_silhouette']:.3f}, "
                         f"DB={metrics['train_davies_bouldin']:.3f}, ARI={metrics['train_ari_vs_ward']:.3f}")
-            results.append(combination | metrics)
+            results.append({"run_id": child.info.run_id} | combination | metrics)
 
         # La mejor combinación se elige con el mismo puntaje que select_k, no solo con la silueta
         table = pd.DataFrame(results)
@@ -345,6 +346,11 @@ def search(model: str = "none") -> None:
         best_idx = int(table["puntaje"].idxmax())
         best = results[best_idx] | {"puntaje": float(table.loc[best_idx, "puntaje"])}
         mlflow.log_metrics({"best_puntaje": best["puntaje"], "best_train_silhouette": best["train_silhouette"]})
+        mlflow.set_tags({
+            "best_run_id": best["run_id"],
+            # las hijas no guardan modelo: la mejor combinación se vuelve a correr como candidate para registrarla
+            "comando_candidato": comando_candidato("p3", model, {p: best[p] for p in grid}),
+        })
         mlflow.log_dict(best, "mejor_combinacion.json")
         mlflow.log_table(table, "resultados_busqueda.json")
     logger.success(f"Búsqueda de P3 registrada en MLflow. Mejor combinación: { {p: best[p] for p in grid} }")
