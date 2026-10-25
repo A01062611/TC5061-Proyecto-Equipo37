@@ -2,12 +2,16 @@
 
 Ubicación: MiBici/modeling/train_p1.py
 Ejecución desde la raíz: python -m MiBici.modeling.train_p1
-Datos locales: data/raw/mibici_2024_2025.csv
+Datos locales: data/interim/mibici_2024_2025.csv
 """
 
 from collections import Counter
+from itertools import product
 from pathlib import Path
 import hashlib
+import inspect
+import os
+import time
 import subprocess
 import warnings
 
@@ -16,15 +20,29 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+import typer
+from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
+from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings("ignore", message=r"IProgress not found.*")
 import mlflow
+import mlflow.sklearn
+from mlflow.models import infer_signature
+
+from MiBici.config import (
+  MLFLOW_EXPERIMENT,
+  MLFLOW_TRACKING_URI,
+  PROJ_ROOT,
+  SEED,
+  TRIPS_CSV
+)
 
 
-ROOT = Path(__file__).resolve().parents[2]
-CSV_PATH = ROOT / "data" / "raw" / "mibici_2024_2025.csv"
+ROOT = PROJ_ROOT
+CSV_PATH = TRIPS_CSV
 FEATURE_COLUMNS = [
   "estacion_id",
   "dia_semana",
@@ -39,7 +57,7 @@ FEATURE_COLUMNS = [
 def leer_y_agregar_viajes(path: Path) -> tuple[pd.DataFrame, int, str]:
   """Valida los IDs y fechas, y cuenta viajes por estación y día."""
   if not path.is_file():
-    raise FileNotFoundError("Coloca mibici_2024_2025.csv en data/raw/.")
+    raise FileNotFoundError(f"No se encontró el CSV: {path}. Ejecuta la ingesta primero.")
 
   conteos_diarios = Counter()
   ids_por_bloque = []
@@ -183,134 +201,344 @@ def commit_actual() -> tuple[str, str]:
   return git_commit, str(trabajo_limpio).lower()
 
 
-def registrar_experimentos(
-  df: pd.DataFrame,
-  dias_imputados: int,
-  hash_csv: str
-) -> None:
-  """Entrena y registra dos runs (baseline y Random Forest) en MLflow."""
+def dividir_temporal(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+  """Mantiene la partición de la entrega anterior sin utilizar datos futuros."""
   train = df[df["fecha"] < "2025-07-01"].copy()
-  val = df[
-    (df["fecha"] >= "2025-07-01") &
-    (df["fecha"] < "2025-10-01")
-  ].copy()
+  val = df[(df["fecha"] >= "2025-07-01") & (df["fecha"] < "2025-10-01")].copy()
   test = df[df["fecha"] >= "2025-10-01"].copy()
+
   if min(len(train), len(val), len(test)) == 0:
-    raise ValueError("Algún conjunto temporal no contiene registros.")
+    raise ValueError("La partición temporal contiene algún conjunto vacío.")
   if not (train["fecha"].max() < val["fecha"].min() < test["fecha"].min()):
-    raise ValueError("La partición temporal es inválida.")
+    raise ValueError("La partición temporal presenta fuga entre conjuntos.")
+  return train, val, test
 
-  modelo = RandomForestRegressor(
-    n_estimators=100,
-    max_depth=18,
-    min_samples_leaf=5,
-    random_state=42,
-    n_jobs=-1
-  )
-  modelo.fit(train[FEATURE_COLUMNS], train["viajes_iniciados"])
-  real = val["viajes_iniciados"]
-  pred_baseline = val["viajes_lag_7"].to_numpy()
-  pred_rf = modelo.predict(val[FEATURE_COLUMNS])
 
-  scores = [
-    {
-      "run_name": "P1 - Baseline semanal",
-      "modelo": "baseline_semanal",
-      "params": {"lag_dias": 7},
-      "mae": float(mean_absolute_error(real, pred_baseline)),
-      "rmse": float(np.sqrt(mean_squared_error(real, pred_baseline)))
-    },
-    {
-      "run_name": "P1 - Random Forest",
-      "modelo": "random_forest_regressor",
-      "params": {
-        "n_estimators": 100,
-        "max_depth": 18,
-        "min_samples_leaf": 5,
-        "random_state": 42
-      },
-      "mae": float(mean_absolute_error(real, pred_rf)),
-      "rmse": float(np.sqrt(mean_squared_error(real, pred_rf)))
-    }
-  ]
+def calcular_metricas(real: pd.Series, predicho: np.ndarray) -> dict[str, float]:
+  return {
+    "mae": float(mean_absolute_error(real, predicho)),
+    "rmse": float(np.sqrt(mean_squared_error(real, predicho)))
+  }
 
-  tabla = pd.DataFrame({
-    "Modelo": [s["run_name"] for s in scores],
-    "MAE": [s["mae"] for s in scores],
-    "RMSE": [s["rmse"] for s in scores]
+
+def generar_graficas(real: pd.Series, predicho: np.ndarray, prefijo: str = "val") -> None:
+  """Registra imágenes en MLflow sin registrar datos personales ni el CSV."""
+  valores = pd.DataFrame({
+    "real": np.asarray(real, dtype=float),
+    "predicho": np.asarray(predicho, dtype=float)
   })
-  fig, ax = plt.subplots(figsize=(8, 4))
-  tabla.set_index("Modelo")[["MAE", "RMSE"]].T.plot(kind="bar", ax=ax, rot=0)
-  ax.set_title("P1 — Comparación de modelos en validación")
-  ax.set_ylabel("Error en viajes por estación-día")
-  ax.set_xlabel("Métrica (menor es mejor)")
-  ax.legend(title="Modelo")
+  muestra = valores.sample(n=min(len(valores), 2500), random_state=SEED)
+
+  fig, ax = plt.subplots(figsize=(6, 5))
+  ax.scatter(muestra["real"], muestra["predicho"], s=9, alpha=0.25)
+  limite = max(float(muestra[["real", "predicho"]].max().max()), 1.0)
+  ax.plot([0, limite], [0, limite], color="black", linestyle="--", linewidth=1)
+  ax.set(title="P1: real vs. predicho", xlabel="Viajes reales", ylabel="Viajes predichos")
   fig.tight_layout()
+  mlflow.log_figure(fig, f"plots/p1_real_vs_predicho_{prefijo}.png")
+  plt.close(fig)
 
-  tracking_db = ROOT / "mlflow.db"
-  artifact_dir = ROOT / "mlruns" / "mibici-equipo37"
-  artifact_dir.mkdir(parents=True, exist_ok=True)
-  mlflow.set_tracking_uri(f"sqlite:///{tracking_db.as_posix()}")
-  experiment_name = "mibici-equipo37"
-  if mlflow.get_experiment_by_name(experiment_name) is None:
-    mlflow.create_experiment(
-      experiment_name,
-      artifact_location=artifact_dir.resolve().as_uri()
-    )
-  mlflow.set_experiment(experiment_name)
-
-  git_commit, git_worktree_clean = commit_actual()
-  comunes = {
-    "horizonte_dias": 1,
-    "inicio_entrenamiento": str(train["fecha"].min().date()),
-    "fin_entrenamiento": str(train["fecha"].max().date()),
-    "inicio_validacion": str(val["fecha"].min().date()),
-    "fin_validacion": str(val["fecha"].max().date()),
-    "filas_entrenamiento": int(len(train)),
-    "filas_validacion": int(len(val)),
-    "dias_imputados": dias_imputados,
-    "datos_sha256": hash_csv,
-    "variable_objetivo": "viajes_iniciados"
-  }
-  etiquetas = {
-    "equipo": "37",
-    "pregunta": "P1",
-    "git_commit": git_commit,
-    "git_worktree_clean": git_worktree_clean,
-    "version_datos": hash_csv,
-    "conjunto_metricas": "validacion"
-  }
-
-  for score in scores:
-    with mlflow.start_run(run_name=score["run_name"]) as run:
-      mlflow.log_params({**comunes, **score["params"]})
-      mlflow.set_tags({**etiquetas, "modelo": score["modelo"]})
-      mlflow.log_metrics({
-        "val_mae": score["mae"],
-        "val_rmse": score["rmse"]
-      })
-      mlflow.log_figure(fig, "graficas/comparacion_p1.png")
-      mlflow.log_dict({
-        "modelo": score["modelo"],
-        "mae_validacion": score["mae"],
-        "rmse_validacion": score["rmse"],
-        "nota": "Datos agregados por estación y día"
-      }, "resumen_validacion.json")
-      print(
-        f"{score['run_name']}: MAE={score['mae']:.4f}, "
-        f"RMSE={score['rmse']:.4f}, run_id={run.info.run_id}"
-      )
+  fig, ax = plt.subplots(figsize=(6, 4))
+  residuales = muestra["real"] - muestra["predicho"]
+  ax.scatter(muestra["predicho"], residuales, s=9, alpha=0.25)
+  ax.axhline(0, color="black", linestyle="--", linewidth=1)
+  ax.set(title="P1: residuales", xlabel="Viajes predichos", ylabel="Real - predicho")
+  fig.tight_layout()
+  mlflow.log_figure(fig, f"plots/p1_residuales_{prefijo}.png")
   plt.close(fig)
 
 
-def main() -> None:
-  """Punto de entrada: datos → modelos → experimentos."""
+def configurar_mlflow() -> None:
+  """Permite el servidor del equipo mediante MLFLOW_TRACKING_URI."""
+  mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", MLFLOW_TRACKING_URI))
+  mlflow.set_experiment(MLFLOW_EXPERIMENT)
+
+
+def registrar_contexto(
+  modelo: str,
+  etapa: str,
+  parametros: dict,
+  contexto: dict,
+  etiquetas: dict
+) -> None:
+  """Metadatos y artefactos requeridos para cada corrida candidata."""
+  mlflow.log_params({**contexto, **parametros})
+  mlflow.set_tags({**etiquetas, "model_family": modelo, "stage_of_work": etapa})
+  manifest_path = ROOT / "references" / "data_manifest.json"
+  if not manifest_path.is_file():
+    raise FileNotFoundError(f"No existe el manifiesto obligatorio: {manifest_path}")
+  mlflow.log_artifact(str(manifest_path), artifact_path="data")
+  mlflow.log_dict({
+    "pregunta": "p1",
+    "modelo": modelo,
+    "etapa": etapa,
+    "parametros": parametros,
+    "columnas": FEATURE_COLUMNS,
+    "semilla": SEED,
+    "split_train_fin_exclusivo": "2025-07-01",
+    "split_val_fin_exclusivo": "2025-10-01"
+  }, "config/run_config.json")
+
+
+def entrenar_candidato(
+  nombre: str,
+  modelo,
+  parametros: dict,
+  train: pd.DataFrame,
+  val: pd.DataFrame,
+  contexto: dict,
+  etiquetas: dict,
+  nested: bool,
+  etapa: str
+) -> dict:
+  """Entrena, evalúa, firma y registra el modelo de una corrida candidata."""
+  X_train = train[FEATURE_COLUMNS]
+  y_train = train["viajes_iniciados"]
+  X_val = val[FEATURE_COLUMNS]
+  y_val = val["viajes_iniciados"]
+
+  with mlflow.start_run(run_name=f"P1 - {nombre}", nested=nested) as run:
+    registrar_contexto(nombre, etapa, parametros, contexto, etiquetas)
+    inicio = time.perf_counter()
+    modelo.fit(X_train, y_train)
+    segundos = time.perf_counter() - inicio
+    predicciones = modelo.predict(X_val)
+    metricas = calcular_metricas(y_val, predicciones)
+    errores = np.abs(np.asarray(y_val, dtype=float) - np.asarray(predicciones, dtype=float))
+    fines = val["es_fin_semana"].to_numpy(dtype=bool)
+    metricas_segmento = {
+      "val_p90_error_absoluto": float(np.percentile(errores, 90)),
+      "val_mae_laboral": float(errores[~fines].mean()) if (~fines).any() else 0.0,
+      "val_mae_fin_semana": float(errores[fines].mean()) if fines.any() else 0.0
+    }
+    mlflow.log_metrics({
+      "val_mae": metricas["mae"],
+      "val_rmse": metricas["rmse"],
+      "train_seconds": segundos,
+      **metricas_segmento
+    })
+    generar_graficas(y_val, predicciones)
+
+    ejemplo = X_train.iloc[:5].copy()
+    firma = infer_signature(ejemplo, modelo.predict(ejemplo))
+    argumentos_modelo = {
+      "sk_model": modelo,
+      "signature": firma,
+      "input_example": ejemplo
+    }
+    # Compatibilidad con MLflow 2.x (artifact_path) y 3.x (name).
+    parametro_ruta = (
+      "name" if "name" in inspect.signature(mlflow.sklearn.log_model).parameters
+      else "artifact_path"
+    )
+    argumentos_modelo[parametro_ruta] = "model"
+    info_modelo = mlflow.sklearn.log_model(**argumentos_modelo)
+    print(
+      f"{nombre}: MAE={metricas['mae']:.4f}, "
+      f"RMSE={metricas['rmse']:.4f}, "
+      f"run_id={run.info.run_id}"
+    )
+    return {
+      "modelo": nombre,
+      "estimador": modelo,
+      "mae": metricas["mae"],
+      "rmse": metricas["rmse"],
+      "seconds": segundos,
+      "run_id": run.info.run_id,
+      "model_uri": info_modelo.model_uri,
+      "params": parametros
+    }
+
+
+def registrar_experimentos(
+  df: pd.DataFrame,
+  dias_imputados: int,
+  hash_csv: str,
+  model: str = "all",
+  n_estimators: int = 100,
+  max_depth: int = 18,
+  min_samples_leaf: int = 5,
+  search: bool = True,
+  n_jobs: int = 2
+) -> dict:
+  """Ejecuta candidatos y una búsqueda anidada de hiperparámetros de RF."""
+  if model not in {"all", "rf", "hgb", "ridge"}:
+    raise ValueError("--model debe ser all, rf, hgb o ridge")
+  if n_estimators < 1 or max_depth < 2 or min_samples_leaf < 1:
+    raise ValueError("Hiperparámetros inválidos para Random Forest")
+
+  train, val, test = dividir_temporal(df)
+  configurar_mlflow()
+  git_commit, git_worktree_clean = commit_actual()
+  contexto = {
+    "horizonte_dias": 1,
+    "train_inicio": str(train["fecha"].min().date()),
+    "train_fin": str(train["fecha"].max().date()),
+    "val_inicio": str(val["fecha"].min().date()),
+    "val_fin": str(val["fecha"].max().date()),
+    "filas_train": len(train),
+    "filas_val": len(val),
+    "dias_imputados": dias_imputados,
+    "datos_sha256": hash_csv,
+    "seed": SEED
+  }
+  etiquetas = {
+    "question": "p1",
+    "equipo": "37",
+    "git_commit": git_commit,
+    "git_worktree_clean": git_worktree_clean,
+    "data_version": hash_csv
+  }
+
+  candidatos = []
+  with mlflow.start_run(run_name="P1 - comparacion de candidatos") as padre:
+    mlflow.set_tags({**etiquetas, "model_family": "multi", "stage_of_work": "comparison"})
+    mlflow.log_params({"model": model, "search": search})
+
+    with mlflow.start_run(run_name="P1 - Baseline semanal", nested=True):
+      registrar_contexto("baseline_semanal", "baseline", {"lag_dias": 7}, contexto, etiquetas)
+      pred_baseline = val["viajes_lag_7"].to_numpy()
+      met_baseline = calcular_metricas(val["viajes_iniciados"], pred_baseline)
+      mlflow.log_metrics({"val_mae": met_baseline["mae"], "val_rmse": met_baseline["rmse"]})
+      generar_graficas(val["viajes_iniciados"], pred_baseline)
+    print(f"Baseline P1: MAE={met_baseline['mae']:.4f}, RMSE={met_baseline['rmse']:.4f}")
+
+    if model in {"all", "ridge"}:
+      candidatos.append(entrenar_candidato(
+        "ridge", make_pipeline(StandardScaler(), Ridge(alpha=10.0)),
+        {"alpha": 10.0}, train, val, contexto, etiquetas, True, "candidate"
+      ))
+
+    if model in {"all", "hgb"}:
+      candidatos.append(entrenar_candidato(
+        "hist_gradient_boosting",
+        HistGradientBoostingRegressor(
+          max_iter=120, max_depth=8, learning_rate=0.1, random_state=SEED
+        ),
+        {"max_iter": 120, "max_depth": 8, "learning_rate": 0.1},
+        train, val, contexto, etiquetas, True, "candidate"
+      ))
+
+    if model in {"all", "rf"}:
+      combinaciones = [(n_estimators, max_depth)]
+      if search:
+        arboles = sorted({max(10, int(n_estimators * 0.7)), n_estimators})
+        profundidades = sorted({max(2, max_depth - 6), max_depth})
+        combinaciones = list(product(arboles, profundidades))
+
+      # Un padre por búsqueda y un hijo por combinación. RF sin búsqueda queda
+      # como corrida candidata normal dentro de la comparación.
+      if search:
+        with mlflow.start_run(run_name="P1 - Busqueda RF", nested=True):
+          mlflow.set_tags({**etiquetas, "model_family": "random_forest", "stage_of_work": "search"})
+          mlflow.log_param("total_combinaciones", len(combinaciones))
+          for arboles, profundidad in combinaciones:
+            parametros = {
+              "n_estimators": arboles,
+              "max_depth": profundidad,
+              "min_samples_leaf": min_samples_leaf,
+              "n_jobs": n_jobs,
+              "random_state": SEED
+            }
+            candidatos.append(entrenar_candidato(
+              "random_forest",
+              RandomForestRegressor(**parametros),
+              parametros, train, val, contexto, etiquetas, True, "search"
+            ))
+      else:
+        parametros = {
+          "n_estimators": n_estimators,
+          "max_depth": max_depth,
+          "min_samples_leaf": min_samples_leaf,
+          "n_jobs": n_jobs,
+          "random_state": SEED
+        }
+        candidatos.append(entrenar_candidato(
+          "random_forest", RandomForestRegressor(**parametros),
+          parametros, train, val, contexto, etiquetas, True, "candidate"
+        ))
+
+    ganador = min(candidatos, key=lambda c: (c["mae"], c["rmse"]))
+    mejora = 100 * (met_baseline["mae"] - ganador["mae"]) / met_baseline["mae"]
+    mlflow.log_metrics({"best_val_mae": ganador["mae"], "improvement_pct": mejora})
+    mlflow.set_tag("best_run_id", ganador["run_id"])
+
+    # Reservamos test para el ganador, una vez elegida la configuración por val.
+    pred_test = ganador["estimador"].predict(test[FEATURE_COLUMNS])
+    met_test = calcular_metricas(test["viajes_iniciados"], pred_test)
+
+    resumen = {
+      "baseline": met_baseline,
+      "candidatos": [
+        {clave: valor for clave, valor in c.items() if clave != "estimador"}
+        for c in candidatos
+      ],
+      "ganador": {
+        "modelo": ganador["modelo"],
+        "run_id": ganador["run_id"],
+        "model_uri": ganador["model_uri"],
+        "val_mae": ganador["mae"],
+        "val_rmse": ganador["rmse"],
+        "test_mae": met_test["mae"],
+        "test_rmse": met_test["rmse"],
+        "mejora_pct_vs_baseline": mejora
+      }
+    }
+    mlflow.log_dict(resumen, "config/p1_resultados.json")
+  # Reabrir una corrida solo después de cerrar la corrida padre de comparación.
+  # MLflow no permite reanudarla con start_run(run_id=...) cuando otra está activa.
+  with mlflow.start_run(run_id=ganador["run_id"]):
+    mlflow.log_metrics({"test_mae": met_test["mae"], "test_rmse": met_test["rmse"]})
+    mlflow.set_tags({"selected_best_p1": "true", "selection_metric": "val_mae"})
+    generar_graficas(test["viajes_iniciados"], pred_test, prefijo="test")
+
+  print("\n=== RESULTADO FINAL P1 ===")
+  print(f"Ganador: {ganador['modelo']} | val MAE: {ganador['mae']:.4f}")
+  print(f"Mejora contra baseline: {mejora:.2f}%")
+  print(f"Test MAE: {met_test['mae']:.4f} | Test RMSE: {met_test['rmse']:.4f}")
+  print(f"Run ID ganador para Edgar: {ganador['run_id']}")
+  print(f"Model URI ganador: {ganador['model_uri']}")
+  print(f"Run ID de comparacion: {padre.info.run_id}")
+  return resumen
+
+
+def run_p1(
+  model: str = "all",
+  n_estimators: int = 100,
+  max_depth: int = 18,
+  min_samples_leaf: int = 5,
+  search: bool = True,
+  n_jobs: int = 2
+) -> dict:
+  """API del módulo para que Alan pueda despachar question=p1 desde train.py."""
   df_diario, _, hash_csv = leer_y_agregar_viajes(CSV_PATH)
   df_modelo, dias_imputados = construir_panel_y_features(df_diario)
   print(f"Observaciones con historial suficiente: {len(df_modelo):,}")
   print(f"Días imputados: {dias_imputados}")
-  registrar_experimentos(df_modelo, dias_imputados, hash_csv)
+  return registrar_experimentos(
+    df_modelo, dias_imputados, hash_csv, model=model,
+    n_estimators=n_estimators, max_depth=max_depth,
+    min_samples_leaf=min_samples_leaf, search=search, n_jobs=n_jobs
+  )
+
+
+def main(
+  model: str = typer.Option("all", help="all, rf, hgb o ridge"),
+  n_estimators: int = typer.Option(100, help="Árboles del Random Forest"),
+  max_depth: int = typer.Option(18, help="Profundidad máxima del Random Forest"),
+  min_samples_leaf: int = typer.Option(5, help="Muestras mínimas por hoja"),
+  search: bool = typer.Option(True, "--search/--no-search", help="Búsqueda nested para RF"),
+  n_jobs: int = typer.Option(2, help="Procesos de Random Forest")
+) -> None:
+  run_p1(
+    model=model,
+    n_estimators=n_estimators,
+    max_depth=max_depth,
+    min_samples_leaf=min_samples_leaf,
+    search=search,
+    n_jobs=n_jobs
+  )
 
 
 if __name__ == "__main__":
-  main()
+  typer.run(main)
