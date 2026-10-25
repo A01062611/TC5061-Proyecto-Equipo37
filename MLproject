@@ -2,6 +2,8 @@ name: MiBici
 
 python_env: python_env.yaml
 
+# Los parámetros con default "" significan "no indicado": el código toma el valor
+# de MiBici/config.py (fechas) o el default del modelo (hiperparámetros).
 entry_points:
   main:
     parameters:
@@ -14,21 +16,58 @@ entry_points:
 
   ingest:
     parameters:
-      desde: {type: string, default: "2024-01"}
-      hasta: {type: string, default: "2025-12"}
+      desde: {type: string, default: ""}
+      hasta: {type: string, default: ""}
     command: >-
-      python -m MiBici.dataset 
-      --desde {desde} 
-      --hasta {hasta}
+      python -m MiBici.dataset
+      --desde={desde}
+      --hasta={hasta}
 
   train:
     parameters:
       question : {type: string, default: all}
       model: {type: string, default: none}
+      # P1: rf
+      n_estimators: {type: string, default: ""}
+      max_depth: {type: string, default: ""}
+      min_samples_leaf: {type: string, default: ""}
+      n_jobs: {type: string, default: ""}
+      # P2: hist_gradient_boosting, logistic_regression
+      max_iter: {type: string, default: ""}
+      learning_rate: {type: string, default: ""}
+      max_leaf_nodes: {type: string, default: ""}
+      l2_regularization: {type: string, default: ""}
+      class_weight: {type: string, default: ""}
+      early_stopping: {type: string, default: ""}
+      penalty: {type: string, default: ""}
+      C: {type: string, default: ""}
+      solver: {type: string, default: ""}
+      # P3: pca_kmeans, agglomerative, gaussian_mixture
+      n_components: {type: string, default: ""}
+      n_clusters: {type: string, default: ""}
+      linkage: {type: string, default: ""}
+      covariance_type: {type: string, default: ""}
     command: >-
       python -m MiBici.modeling.train main
       --question {question}
       --model {model}
+      --n_estimators={n_estimators}
+      --max_depth={max_depth}
+      --min_samples_leaf={min_samples_leaf}
+      --n_jobs={n_jobs}
+      --max_iter={max_iter}
+      --learning_rate={learning_rate}
+      --max_leaf_nodes={max_leaf_nodes}
+      --l2_regularization={l2_regularization}
+      --class_weight={class_weight}
+      --early_stopping={early_stopping}
+      --penalty={penalty}
+      --C={C}
+      --solver={solver}
+      --n_components={n_components}
+      --n_clusters={n_clusters}
+      --linkage={linkage}
+      --covariance_type={covariance_type}
 
   search:
     parameters:

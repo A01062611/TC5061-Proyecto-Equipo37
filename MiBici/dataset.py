@@ -33,7 +33,7 @@ from loguru import logger
 import pandas as pd
 import typer
 
-from MiBici.config import PROJ_ROOT, RAW_DATA_DIR, STATIONS_CSV, TRIPS_CSV
+from MiBici.config import FECHA_FIN, FECHA_INICIO, PROJ_ROOT, RAW_DATA_DIR, STATIONS_CSV, TRIPS_CSV
 
 app = typer.Typer()
 
@@ -217,8 +217,8 @@ def verificar(manifest_path: Path = MANIFEST_PATH) -> bool:
 
 @app.command()
 def main(
-    desde: str = typer.Option("2024-01", help="Primer mes (aaaa-mm)"),
-    hasta: str = typer.Option("2025-12", help="Último mes (aaaa-mm)"),
+    desde: str = typer.Option(FECHA_INICIO[:7], help="Primer mes (aaaa-mm); vacío usa FECHA_INICIO de config.py"),
+    hasta: str = typer.Option(FECHA_FIN[:7], help="Último mes (aaaa-mm); vacío usa FECHA_FIN de config.py"),
     salida: Path = TRIPS_CSV,
     estaciones: Path = STATIONS_CSV,
     forzar_descarga: bool = typer.Option(False, help="Volver a descargar aunque los archivos ya existan"),
@@ -230,6 +230,9 @@ def main(
         logger.success(f"Los datos locales coinciden con el manifiesto (data_version={data_version()[:12]}…)")
         return
 
+    # mlflow run pasa "" cuando no se indica el parámetro: se toma el rango de config.py
+    desde = desde or FECHA_INICIO[:7]
+    hasta = hasta or FECHA_FIN[:7]
     meses = [m for m in ARCHIVOS_VIAJES if desde <= m <= hasta]
     if not meses:
         raise typer.BadParameter(f"no hay meses entre {desde} y {hasta}")

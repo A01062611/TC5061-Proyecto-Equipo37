@@ -73,7 +73,7 @@ def combinaciones(grid: dict) -> list[dict]:
 def search_run(pregunta: str, model_family: str, etiquetas: dict):
     """Run padre de una búsqueda; cada combinación se registra como run hijo dentro de él."""
     with mlflow.start_run(run_name=f"{pregunta} - {model_family} - search", nested=True) as parent:
-        mlflow.set_tags(etiquetas | {"pregunta": pregunta, "model_family": model_family, "stage_of_work": "search"})
+        mlflow.set_tags(etiquetas | {"question": pregunta.lower(), "model_family": model_family, "stage_of_work": "search"})
         yield parent
 
 
@@ -82,7 +82,7 @@ def child_run(pregunta: str, model_family: str, params: dict, etiquetas: dict):
     """Run hijo de una búsqueda: una combinación de hiperparámetros."""
     nombre = ", ".join(f"{k}={v}" for k, v in params.items())
     with mlflow.start_run(run_name=f"{pregunta} - {model_family} - {nombre}", nested=True) as run:
-        mlflow.set_tags(etiquetas | {"pregunta": pregunta, "model_family": model_family, "stage_of_work": "search"})
+        mlflow.set_tags(etiquetas | {"question": pregunta.lower(), "model_family": model_family, "stage_of_work": "search"})
         mlflow.log_params(params)
         yield run
 

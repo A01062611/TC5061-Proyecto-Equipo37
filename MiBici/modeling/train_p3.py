@@ -305,10 +305,10 @@ def prepare_data() -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, StandardScal
     }
     tags = {
         "equipo": "37",
-        "pregunta": "P3",
+        "question": "p3",
         "git_commit": commit,
         "git_worktree_clean": clean,
-        "version_datos": data_hash,
+        "data_version": data_hash,
     }
     return profile, summary, X_std, scaler, base_params, tags
 

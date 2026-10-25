@@ -156,10 +156,10 @@ def init_common(params: dict, k: int, SEED: int, trips_path: str, len_train: int
     }
     tags = {
         "equipo": "37",
-        "pregunta": "P2",
+        "question": "p2",
         "git_commit": commit,
         "git_worktree_clean": clean,
-        "version_datos": datos_sha,
+        "data_version": datos_sha,
     }
 
     return comunes, tags

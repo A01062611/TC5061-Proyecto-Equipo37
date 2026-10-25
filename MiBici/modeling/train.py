@@ -23,6 +23,27 @@ TRAINING_MODELS = {
 P1_HYPERPARAMS = {"n_estimators": int, "max_depth": int, "min_samples_leaf": int, "n_jobs": int}
 
 
+def parse_hyperparams(args: list[str]) -> dict:
+    """Convierte los argumentos extra de la CLI en un dict de hiperparámetros.
+
+    Acepta `--k=v` (los declarados en MLproject) y `--k v` (los no declarados, que
+    mlflow run agrega al final). Los valores vacíos son hiperparámetros no indicados
+    y se descartan para que cada modelo use su default.
+    """
+    hyperparams, i = {}, 0
+    while i < len(args):
+        key = args[i].lstrip("-")
+        if "=" in key:
+            key, value = key.split("=", 1)
+            i += 1
+        else:
+            value = args[i + 1] if i + 1 < len(args) else ""
+            i += 2
+        if value != "":
+            hyperparams[key] = value
+    return hyperparams
+
+
 def run_p1(model: str, hyperparams: dict, search: bool) -> None:
     """Adapta el contrato de train.py a train_p1.run_p1 (que usa all/rf/hgb/ridge y un flag de búsqueda)."""
     desconocidos = set(hyperparams) - set(P1_HYPERPARAMS)
@@ -57,9 +78,8 @@ def main(
     question: Question = typer.Option(Question.all, help="Pregunta a entrenar (p1, p2, p3, all). Default: all"),
     model: str = typer.Option("none", help="Nombre del modelo a entrenar")
 ):
-    # Extraer los nombres de los hiperparametros recibidos desde CLI
-    param_names = [arg.lstrip("-") for arg in ctx.args[::2]]
-    hyperparams = dict(zip(param_names, ctx.args[1::2]))
+    # Extraer los hiperparametros recibidos desde CLI
+    hyperparams = parse_hyperparams(ctx.args)
 
     if question == Question.all:
         logger.info("Entrenando modelos para todas las preguntas con hiperparámetros default")
