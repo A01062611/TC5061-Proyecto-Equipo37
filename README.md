@@ -18,6 +18,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Experimentos con el MLflow Project](#experimentos-con-el-mlflow-project)
 - [Reproducir desde un clon limpio](#reproducir-desde-un-clon-limpio)
 - [Model Registry](#model-registry)
+- [Pruebas automatizadas de P1](#pruebas-automatizadas-de-p1)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
@@ -278,6 +279,54 @@ import mlflow
 
 modelo = mlflow.pyfunc.load_model("models:/mibici-equipo37-p2-riesgo@champion")
 ```
+## Pruebas automatizadas de P1
+
+Para verificar el correcto funcionamiento del modelo de regresión de P1, se implementaron pruebas unitarias utilizando PyTest. Estas pruebas permiten validar el procesamiento de datos, la generación de características, la división temporal y la reproducibilidad del modelo.
+
+Las pruebas utilizan datos sintéticos, por lo que no requieren descargar ni procesar el dataset completo de MiBici.
+
+### Funcionalidades evaluadas
+
+Se evaluaron las siguientes funciones:
+
+- `leer_y_agregar_viajes()`: verifica el procesamiento de archivos CSV, la agregación de viajes y el manejo de datos inválidos.
+- `construir_panel_y_features()`: comprueba la imputación de días faltantes y la generación de características sin fuga de información temporal ni mezcla de estaciones.
+- `dividir_temporal()`: valida la división cronológica de los datos y el manejo de conjuntos vacíos.
+- `calcular_metricas()`: verifica el cálculo de métricas y el manejo de predicciones con longitudes incorrectas.
+
+También se implementó una prueba de reproducibilidad para Random Forest, utilizando la semilla fija `SEED = 42`. Esta prueba entrena dos modelos independientes con los mismos parámetros y verifica que produzcan predicciones y métricas idénticas.
+
+### Ejecución de las pruebas
+
+Desde la raíz del repositorio, con el entorno virtual activado y las dependencias instaladas, ejecutar:
+
+```bash
+make test
+```
+
+Para ejecutar únicamente las pruebas de P1:
+
+```bash
+python -m pytest tests/test_train_p1.py tests/test_p1_quality.py -v
+```
+
+### Resultados
+
+Se ejecutaron 14 casos de prueba de P1, incluyendo casos normales, casos límite y la verificación de reproducibilidad.
+
+Los resultados obtenidos fueron:
+
+- **14 pruebas exitosas.**
+- **0 pruebas fallidas.**
+- **1 advertencia de pandas**, generada durante la prueba intencional de una fecha inválida.
+
+Todas las pruebas se ejecutaron correctamente utilizando Python 3.10.22 y PyTest 9.1.1.
+
+### Evidencia de ejecución
+
+La siguiente captura muestra la ejecución exitosa de las pruebas mediante el comando `make test`.
+
+![Ejecución de las pruebas unitarias de P1](reports/figures/testing/p1_pytest.png)
 
 ## Flujo de trabajo con Git
 
