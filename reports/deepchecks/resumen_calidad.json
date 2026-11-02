@@ -1,0 +1,57 @@
+{
+  "archivo": "data/raw/mibici_2024_2025.csv",
+  "sha256": "2c3c293103cd9e806b3cd4b16df4530779e207da36feb4d0780a81cac811314f",
+  "global": {
+    "registros": 9177953,
+    "faltantes": {
+      "Viaje_Id": 0,
+      "Usuario_Id": 0,
+      "Genero": 69735,
+      "Anio_de_nacimiento": 3772,
+      "Inicio_del_viaje": 0,
+      "Fin_del_viaje": 0,
+      "Origen_Id": 0,
+      "Destino_Id": 0
+    },
+    "invalidos": {
+      "Viaje_Id": 0,
+      "Origen_Id": 0,
+      "Destino_Id": 0,
+      "Inicio_del_viaje": 0,
+      "Fin_del_viaje": 0
+    },
+    "inicio_posterior_fin": 0,
+    "viaje_id_duplicados": 0
+  },
+  "deepchecks": {
+    "muestra": 10000,
+    "semilla": 42,
+    "chequeos": [
+      {
+        "chequeo": "MixedNulls",
+        "tipo": "CheckResult",
+        "resultado": "{'n_samples': 10000, 'columns': {'Viaje_Id': {}, 'Usuario_Id': {}, 'Genero': {'\"NULL\"': {'count': 68, 'percent': 0.0068}, 'math.nan': {'count': 3, 'percent': 0.0003}}, 'Anio_de_nacimiento': {'\"NA\"': {'count': 4, 'percent': 0.0004}}, 'Inicio_del_viaje': {}, 'Fin_del_viaje': {}, 'Origen_Id': {}, 'Destino_Id': {}}, 'feature_importance': Viaje_Id              NaN\nUsuario_Id            NaN\nGenero                NaN\nAnio_de_nacimiento    NaN\nInicio_del_viaje      NaN\nFin_del_viaje         NaN\nOrigen_Id             NaN\nDestino_Id            NaN\ndtype: object}"
+      },
+      {
+        "chequeo": "MixedDataTypes",
+        "tipo": "CheckResult",
+        "resultado": "{'Viaje_Id': {}, 'Usuario_Id': {}, 'Genero': {}, 'Anio_de_nacimiento': {'strings': 0.0004, 'numbers': 0.9996, 'strings_examples': {'NA'}, 'numbers_examples': {'1979', '1998', '1988'}}, 'Inicio_del_viaje': {}, 'Fin_del_viaje': {}, 'Origen_Id': {}, 'Destino_Id': {}}"
+      },
+      {
+        "chequeo": "DataDuplicates",
+        "tipo": "CheckResult",
+        "resultado": "0.0"
+      },
+      {
+        "chequeo": "StringMismatch",
+        "tipo": "CheckResult",
+        "resultado": "{'n_samples': 10000, 'columns': {'Genero': {}, 'Anio_de_nacimiento': {}, 'Inicio_del_viaje': {}, 'Fin_del_viaje': {}}, 'feature_importance': Viaje_Id              NaN\nUsuario_Id            NaN\nGenero                NaN\nAnio_de_nacimiento    NaN\nInicio_del_viaje      NaN\nFin_del_viaje         NaN\nOrigen_Id             NaN\nDestino_Id            NaN\ndtype: object}"
+      },
+      {
+        "chequeo": "SpecialCharacters",
+        "tipo": "CheckResult",
+        "resultado": "{'Viaje_Id': 0, 'Usuario_Id': 0, 'Genero': 0, 'Anio_de_nacimiento': 0, 'Inicio_del_viaje': 0, 'Fin_del_viaje': 0, 'Origen_Id': 0, 'Destino_Id': 0}"
+      }
+    ]
+  }
+}

@@ -19,6 +19,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Reproducir desde un clon limpio](#reproducir-desde-un-clon-limpio)
 - [Model Registry](#model-registry)
 - [Pruebas automatizadas de P1](#pruebas-automatizadas-de-p1)
+- [Calidad de datos, pruebas integradas y seguridad (Actividad 7)](#calidad-de-datos-pruebas-integradas-y-seguridad-actividad-7)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
@@ -327,6 +328,69 @@ Todas las pruebas se ejecutaron correctamente utilizando Python 3.10.22 y PyTest
 La siguiente captura muestra la ejecución exitosa de las pruebas mediante el comando `make test`.
 
 ![Ejecución de las pruebas unitarias de P1](reports/figures/testing/p1_pytest.png)
+
+
+## Calidad de datos, pruebas integradas y seguridad (Actividad 7)
+
+### Pruebas automatizadas
+
+Con Python 3.10 y el entorno de pruebas activado, desde la raíz del repositorio:
+
+```bash
+make test
+```
+
+**Evidencia local (31 de octubre de 2026):** 80 pruebas aprobadas, ninguna fallida, una advertencia de pandas por una fecha inválida utilizada en una prueba de P1; duración 11.31 segundos. Incluye pruebas de P1, P2, P3, reproducibilidad y cuatro pruebas adicionales de calidad de datos. Este resultado corresponde al entorno en el que se ejecutó; debe reproducirse en cada instalación.
+
+### Entorno separado para DeepChecks
+
+El archivo `requirements.txt` del entrenamiento fija NumPy 2.2.6, mientras que DeepChecks 0.19.1 requiere NumPy 1.26.4 en el entorno de validación utilizado (por compatibilidad con `np.Inf`). **No instalar ambos requisitos contradictorios en la misma resolución.** Preparar un entorno Python 3.10 independiente y generar una copia local de los requisitos del proyecto sustituyendo solamente la línea `numpy==`:
+
+```bash
+python -m venv .venv-testing
+source .venv-testing/bin/activate
+python - <<'PYCODE'
+from pathlib import Path
+lines = Path('requirements.txt').read_text().splitlines()
+assert sum(x.strip().startswith('numpy==') for x in lines) == 1
+Path('/tmp/mibici-requirements-testing-base.txt').write_text(
+    '\n'.join('numpy==1.26.4' if x.strip().startswith('numpy==') else x for x in lines) + '\n'
+)
+PYCODE
+python -m pip install -r /tmp/mibici-requirements-testing-base.txt
+python -m pip install -r requirements-testing.txt
+python -m pip check
+```
+
+Estas instrucciones reflejan el procedimiento utilizado, pero deben verificarse en un clon limpio antes de considerarlas una garantía de reproducción en cualquier plataforma.
+
+### Calidad del CSV consolidado
+
+El archivo `data/raw/mibici_2024_2025.csv` debe estar disponible localmente y su SHA-256 debe coincidir con `references/data_manifest.json`. Los datos originales no se versionan.
+
+```bash
+python -m pytest tests/test_data_quality.py -v
+python scripts/validate_data.py
+```
+
+El script valida el CSV completo por bloques y ejecuta DeepChecks sobre una muestra determinista de 10,000 registros (semilla 42). Genera `reports/deepchecks/resumen_calidad.json` y un HTML de integridad. Los resultados de la muestra **no** se deben presentar como si fueran un análisis exhaustivo de las 9,177,953 filas. Se registraron faltantes y representaciones como `NULL`/`NA`; no se modificaron los datos de origen. El reporte HTML se exporta con `as_widget=False` para evitar incompatibilidades de Jupyter Widgets.
+
+**Drift de P2:** pendiente de disponer de la tabla de features del pipeline vigente (`data/processed/p2/tabla.parquet`) y del catálogo de estaciones. No se reporta ningún resultado de drift hasta realizar esa comparación.
+
+### Auditoría básica de seguridad
+
+```bash
+python -m pip install bandit==1.9.4 pip-audit==2.10.1
+mkdir -p reports/security
+python -m bandit -r MiBici scripts -f json -o reports/security/bandit.json
+python -m pip_audit -r requirements.txt -f json -o reports/security/pip_audit.json
+```
+
+Bandit puede devolver un código de salida distinto de cero cuando detecta hallazgos. `pip-audit` requiere acceso a las fuentes de avisos de vulnerabilidades. No se debe interpretar la generación de un archivo JSON como ausencia de riesgos.
+
+En la ejecución local, Bandit reportó 13 hallazgos (1 medio y 12 bajos), y pip-audit reportó 42 avisos en dos paquetes (`pillow` y `tornado`). La revisión por patrones no detectó coincidencias de secretos en los archivos rastreados, y Git ignora `data/`. Estos resultados **no** certifican que el código esté libre de vulnerabilidades ni que se haya auditado todo el historial de Git. Consultar `reports/security/INFORME_SEGURIDAD.md` para el alcance, los hallazgos y los riesgos pendientes.
+
+Las evidencias a entregar deben ser capturas de ejecuciones reales y reportes revisados para evitar exponer datos personales, credenciales o rutas innecesarias.
 
 ## Flujo de trabajo con Git
 
