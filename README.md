@@ -433,3 +433,23 @@ Seguimos **GitHub Flow**:
 | Isaac González | P1 · pronóstico de viajes diarios |
 | Edgar González Paz | P2 · propuesta de desequilibrio horario |
 | Mario González | P2 · riesgo de vaciado/llenado; ingesta de datos |
+
+## Evidencias de ejecución - Actividad 7
+
+Las siguientes capturas documentan las ejecuciones de pruebas automatizadas y auditorías de seguridad del Equipo 37.
+
+### PyTest - 80 pruebas aprobadas
+
+![PyTest Equipo 37](reports/figures/testing/pytest_equipo37_80_passed.png)
+
+### Bandit - análisis estático de seguridad
+
+Se registraron 13 hallazgos: 12 de severidad baja y uno de severidad media.
+
+![Bandit](reports/figures/testing/bandit_ejecucion.png)
+
+### pip-audit - auditoría de dependencias
+
+Se reportaron 42 vulnerabilidades conocidas en dos paquetes. Los riesgos identificados se documentan en el informe de seguridad.
+
+![pip-audit](reports/figures/testing/pip_audit_ejecucion.png)
