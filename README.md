@@ -375,7 +375,15 @@ python scripts/validate_data.py
 
 El script valida el CSV completo por bloques y ejecuta DeepChecks sobre una muestra determinista de 10,000 registros (semilla 42). Genera `reports/deepchecks/resumen_calidad.json` y un HTML de integridad. Los resultados de la muestra **no** se deben presentar como si fueran un análisis exhaustivo de las 9,177,953 filas. Se registraron faltantes y representaciones como `NULL`/`NA`; no se modificaron los datos de origen. El reporte HTML se exporta con `as_widget=False` para evitar incompatibilidades de Jupyter Widgets.
 
-**Drift de P2:** pendiente de disponer de la tabla de features del pipeline vigente (`data/processed/p2/tabla.parquet`) y del catálogo de estaciones. No se reporta ningún resultado de drift hasta realizar esa comparación.
+### Análisis de data drift de P2
+
+Se reconstruyó `data/processed/p2/tabla.parquet` mediante `python -m MiBici.features p2` y se compararon las 23 características del modelo con DeepChecks 0.19.1 (`FeatureDrift`), usando 10,000 registros por partición y semilla 42. Se evaluó **train vs. val** y **train vs. test**, sin reentrenar modelos.
+
+```bash
+python scripts/validate_drift.py
+```
+
+La ejecución genera `reports/deepchecks/drift_p2_resumen.json` y dos HTML locales (no versionados por su tamaño). Las figuras compactas y la interpretación se encuentran en [Informe de drift P2](reports/deepchecks/INFORME_DRIFT_P2.md). Las mayores diferencias observadas incluyen `frac_vacio_7d`, `frac_lleno_7d`, `lon` y `festivo`; no se establecieron umbrales automáticos ni se evaluó degradación del modelo. Los valores faltantes se documentan por separado.
 
 ### Auditoría básica de seguridad
 

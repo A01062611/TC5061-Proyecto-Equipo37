@@ -1,0 +1,382 @@
+{
+  "generado_utc": "2026-11-02T02:21:26.612230+00:00",
+  "fuente": "data/processed/p2/tabla.parquet",
+  "metodo": "FeatureDrift de DeepChecks 0.19.1",
+  "semilla": 42,
+  "tamano_muestra_por_particion": 10000,
+  "features": [
+    "hora",
+    "ocup_est",
+    "estado_est",
+    "tend_1h",
+    "sal_1h",
+    "sal_2h",
+    "sal_ayer_2h",
+    "sal_sem_2h",
+    "sal_media7_2h",
+    "lle_1h",
+    "lle_2h",
+    "lle_ayer_2h",
+    "lle_sem_2h",
+    "lle_media7_2h",
+    "frac_vacio_7d",
+    "frac_lleno_7d",
+    "riesgo_ayer",
+    "dia_semana",
+    "fin_semana",
+    "festivo",
+    "C",
+    "lat",
+    "lon"
+  ],
+  "categoricas": [
+    "hora",
+    "dia_semana",
+    "fin_semana",
+    "festivo",
+    "riesgo_ayer"
+  ],
+  "nota": "Drift calculado sobre muestras, no sobre todas las filas. Faltantes preservados; no se imputaron datos. FeatureDrift usa ignore_na=True; las tasas de faltantes se documentan por separado.",
+  "particiones": {
+    "train": {
+      "registros": 3261440,
+      "faltantes_por_feature": {
+        "hora": 0,
+        "ocup_est": 0,
+        "estado_est": 0,
+        "tend_1h": 0,
+        "sal_1h": 346,
+        "sal_2h": 692,
+        "sal_ayer_2h": 6920,
+        "sal_sem_2h": 44380,
+        "sal_media7_2h": 6920,
+        "lle_1h": 346,
+        "lle_2h": 692,
+        "lle_ayer_2h": 6920,
+        "lle_sem_2h": 44380,
+        "lle_media7_2h": 6920,
+        "frac_vacio_7d": 13560,
+        "frac_lleno_7d": 13560,
+        "riesgo_ayer": 314920,
+        "dia_semana": 0,
+        "fin_semana": 0,
+        "festivo": 0,
+        "C": 0,
+        "lat": 0,
+        "lon": 0
+      }
+    },
+    "val": {
+      "registros": 568180,
+      "faltantes_por_feature": {
+        "hora": 0,
+        "ocup_est": 0,
+        "estado_est": 0,
+        "tend_1h": 0,
+        "sal_1h": 0,
+        "sal_2h": 0,
+        "sal_ayer_2h": 0,
+        "sal_sem_2h": 0,
+        "sal_media7_2h": 0,
+        "lle_1h": 0,
+        "lle_2h": 0,
+        "lle_ayer_2h": 0,
+        "lle_sem_2h": 0,
+        "lle_media7_2h": 0,
+        "frac_vacio_7d": 780,
+        "frac_lleno_7d": 780,
+        "riesgo_ayer": 49500,
+        "dia_semana": 0,
+        "fin_semana": 0,
+        "festivo": 0,
+        "C": 0,
+        "lat": 0,
+        "lon": 0
+      }
+    },
+    "test": {
+      "registros": 574500,
+      "faltantes_por_feature": {
+        "hora": 0,
+        "ocup_est": 0,
+        "estado_est": 0,
+        "tend_1h": 0,
+        "sal_1h": 0,
+        "sal_2h": 0,
+        "sal_ayer_2h": 0,
+        "sal_sem_2h": 0,
+        "sal_media7_2h": 0,
+        "lle_1h": 0,
+        "lle_2h": 0,
+        "lle_ayer_2h": 0,
+        "lle_sem_2h": 0,
+        "lle_media7_2h": 0,
+        "frac_vacio_7d": 760,
+        "frac_lleno_7d": 760,
+        "riesgo_ayer": 45160,
+        "dia_semana": 0,
+        "fin_semana": 0,
+        "festivo": 0,
+        "C": 0,
+        "lat": 0,
+        "lon": 0
+      }
+    }
+  },
+  "comparaciones": {
+    "train_vs_val": {
+      "html": "reports/deepchecks/drift_p2_train_vs_val.html",
+      "chequeos": [
+        {
+          "nombre": "Feature Drift",
+          "tipo": "CheckResult",
+          "resultado_agregado": {
+            "hora": {
+              "Drift score": 0.0,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "ocup_est": {
+              "Drift score": 0.014399999999999968,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "estado_est": {
+              "Drift score": 0.0025999999999999357,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "tend_1h": {
+              "Drift score": 0.016000000000000014,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_1h": {
+              "Drift score": 0.007211631163116294,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_2h": {
+              "Drift score": 0.012719111911191128,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_ayer_2h": {
+              "Drift score": 0.008625678789700442,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_sem_2h": {
+              "Drift score": 0.015019741100323558,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_media7_2h": {
+              "Drift score": 0.006755595631700251,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_1h": {
+              "Drift score": 0.017852715271527153,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_2h": {
+              "Drift score": 0.018530823082308245,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_ayer_2h": {
+              "Drift score": 0.008817683598837833,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_sem_2h": {
+              "Drift score": 0.013537864077669881,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_media7_2h": {
+              "Drift score": 0.017392676084560688,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "frac_vacio_7d": {
+              "Drift score": 0.02568548319609021,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "frac_lleno_7d": {
+              "Drift score": 0.024049968199772342,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "riesgo_ayer": {
+              "Drift score": 0.006349583873505708,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "dia_semana": {
+              "Drift score": 0.011801229062578472,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "fin_semana": {
+              "Drift score": 0.0,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "festivo": {
+              "Drift score": 0.046955174518618144,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "C": {
+              "Drift score": 0.008399999999999963,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lat": {
+              "Drift score": 0.013600000000000056,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lon": {
+              "Drift score": 0.014799999999999924,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            }
+          },
+          "excepcion": null
+        }
+      ]
+    },
+    "train_vs_test": {
+      "html": "reports/deepchecks/drift_p2_train_vs_test.html",
+      "chequeos": [
+        {
+          "nombre": "Feature Drift",
+          "tipo": "CheckResult",
+          "resultado_agregado": {
+            "hora": {
+              "Drift score": 0.010133170188355906,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "ocup_est": {
+              "Drift score": 0.01599999999999996,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "estado_est": {
+              "Drift score": 0.0046000000000000485,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "tend_1h": {
+              "Drift score": 0.016100000000000003,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_1h": {
+              "Drift score": 0.002218541854185352,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_2h": {
+              "Drift score": 0.009331043104310432,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_ayer_2h": {
+              "Drift score": 0.00671394649834689,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_sem_2h": {
+              "Drift score": 0.018700485436893177,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "sal_media7_2h": {
+              "Drift score": 0.012836058511171256,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_1h": {
+              "Drift score": 0.011952715271527137,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_2h": {
+              "Drift score": 0.014251385138513817,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_ayer_2h": {
+              "Drift score": 0.011441338543232149,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_sem_2h": {
+              "Drift score": 0.015231391585760534,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lle_media7_2h": {
+              "Drift score": 0.010612233243162017,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "frac_vacio_7d": {
+              "Drift score": 0.050387978222376506,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "frac_lleno_7d": {
+              "Drift score": 0.027593462354721376,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "riesgo_ayer": {
+              "Drift score": 0.0,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "dia_semana": {
+              "Drift score": 0.026761973903939217,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "fin_semana": {
+              "Drift score": 0.019200810434649048,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "festivo": {
+              "Drift score": 0.008183517599213493,
+              "Method": "Cramer's V",
+              "Importance": null
+            },
+            "C": {
+              "Drift score": 0.0025999999999999357,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lat": {
+              "Drift score": 0.0131,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            },
+            "lon": {
+              "Drift score": 0.03490000000000004,
+              "Method": "Kolmogorov-Smirnov",
+              "Importance": null
+            }
+          },
+          "excepcion": null
+        }
+      ]
+    }
+  }
+}
