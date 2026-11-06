@@ -10,6 +10,8 @@ mlartifacts/
 # Serialized models
 /models/*
 !/models/.gitkeep
+# Modelo servido por la API (P2, ~9 MB): versionado para que la imagen construya desde un clon limpio
+!/models/mibici-equipo37-p2-riesgo/
 *.pkl
 *.joblib
 *.onnx
