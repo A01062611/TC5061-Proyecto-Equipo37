@@ -1,3 +1,5 @@
+fastapi==0.146.0
+httpx==0.28.1
 ipython==8.39.0
 jupyterlab==4.6.4
 loguru==0.7.3
@@ -14,4 +16,5 @@ ruff==0.17.2
 scikit-learn==1.7.2
 tqdm==4.70.1
 typer==0.27.3
+uvicorn==0.54.0
 -e .
