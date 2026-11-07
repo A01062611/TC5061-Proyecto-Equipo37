@@ -1,0 +1,55 @@
+artifact_path: mlflow-artifacts:/1/models/m-7d7b6776ad81449386e1346ef98513a4/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.10.13
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.7.2
+    skops_trusted_types:
+    - sklearn.tree._tree.Tree
+    - sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor
+    - functools.partial
+    - sklearn.utils.validation.check_array
+    - numpy.dtype
+is_signature_from_type_hint: false
+mlflow_version: 3.17.1
+model_id: m-7d7b6776ad81449386e1346ef98513a4
+model_size_bytes: 9792664
+model_uuid: m-7d7b6776ad81449386e1346ef98513a4
+prompts: null
+run_id: acdae4e1edea4f7bb67d77de0e2ea24e
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "integer", "name": "hora", "required": true}, {"type": "float",
+    "name": "ocup_est", "required": true}, {"type": "float", "name": "estado_est",
+    "required": true}, {"type": "float", "name": "tend_1h", "required": true}, {"type":
+    "float", "name": "sal_1h", "required": true}, {"type": "float", "name": "sal_2h",
+    "required": true}, {"type": "float", "name": "sal_ayer_2h", "required": true},
+    {"type": "float", "name": "sal_sem_2h", "required": true}, {"type": "float", "name":
+    "sal_media7_2h", "required": true}, {"type": "float", "name": "lle_1h", "required":
+    true}, {"type": "float", "name": "lle_2h", "required": true}, {"type": "float",
+    "name": "lle_ayer_2h", "required": true}, {"type": "float", "name": "lle_sem_2h",
+    "required": true}, {"type": "float", "name": "lle_media7_2h", "required": true},
+    {"type": "float", "name": "frac_vacio_7d", "required": true}, {"type": "float",
+    "name": "frac_lleno_7d", "required": true}, {"type": "float", "name": "riesgo_ayer",
+    "required": true}, {"type": "float", "name": "dia_semana", "required": true},
+    {"type": "float", "name": "fin_semana", "required": true}, {"type": "float", "name":
+    "festivo", "required": true}, {"type": "float", "name": "C", "required": true},
+    {"type": "float", "name": "lat", "required": true}, {"type": "float", "name":
+    "lon", "required": true}]'
+  outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "int8", "shape": [-1]}}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-10-25 20:22:55.407039'
