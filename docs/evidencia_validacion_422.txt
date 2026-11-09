@@ -1,0 +1,159 @@
+{
+    "detail": [
+        {
+            "type": "less_than_equal",
+            "loc": [
+                "body",
+                "hora"
+            ],
+            "msg": "Input should be less than or equal to 23",
+            "input": 30,
+            "ctx": {
+                "le": 23
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "ocup_est"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "estado_est"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "tend_1h"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "sal_1h"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "sal_2h"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "lle_1h"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "lle_2h"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "dia_semana"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "fin_semana"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "festivo"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "C"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "lat"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        },
+        {
+            "type": "missing",
+            "loc": [
+                "body",
+                "lon"
+            ],
+            "msg": "Field required",
+            "input": {
+                "hora": 30
+            }
+        }
+    ]
+}
