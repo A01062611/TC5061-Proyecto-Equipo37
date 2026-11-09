@@ -20,6 +20,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Model Registry](#model-registry)
 - [Pruebas automatizadas de P1](#pruebas-automatizadas-de-p1)
 - [Calidad de datos, pruebas integradas y seguridad (Actividad 7)](#calidad-de-datos-pruebas-integradas-y-seguridad-actividad-7)
+- [API REST con Podman (Actividad 8)](#api-rest-con-podman-actividad-8)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
@@ -69,7 +70,7 @@ Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a
 │   ├── raw/mensuales/      <- CSV mensuales y nomenclatura, tal como se descargan
 │   ├── interim/            <- CSV consolidado y normalizado (lo genera dataset.py)
 │   └── processed/          <- tablas de modelado por pregunta
-├── models/                 <- modelos entrenados (no se versionan)
+├── models/                 <- modelo P2 exportado para despliegue; otros modelos no se versionan
 ├── notebooks/              <- exploración; convención: número-iniciales-descripción
 ├── references/
 │   └── data_manifest.json  <- versión de los datos (hash y registros por archivo)
@@ -399,6 +400,171 @@ Bandit puede devolver un código de salida distinto de cero cuando detecta halla
 En la ejecución local, Bandit reportó 13 hallazgos (1 medio y 12 bajos), y pip-audit reportó 42 avisos en dos paquetes (`pillow` y `tornado`). La revisión por patrones no detectó coincidencias de secretos en los archivos rastreados, y Git ignora `data/`. Estos resultados **no** certifican que el código esté libre de vulnerabilidades ni que se haya auditado todo el historial de Git. Consultar `reports/security/INFORME_SEGURIDAD.md` para el alcance, los hallazgos y los riesgos pendientes.
 
 Las evidencias a entregar deben ser capturas de ejecuciones reales y reportes revisados para evitar exponer datos personales, credenciales o rutas innecesarias.
+
+## API REST con Podman (Actividad 8)
+
+### Objetivo
+
+Se implementó un servicio de inferencia con **FastAPI** para consumir el modelo **P2** de MiBici, que clasifica el riesgo de una estación de quedarse sin bicicletas o sin anclajes durante las siguientes dos horas. El servicio se empaqueta en un contenedor mediante `Containerfile` y se ejecuta con **Podman**. El modelo se carga desde un artefacto de MLflow incluido en la imagen.
+
+### Archivos principales
+
+- `app/main.py`: endpoints de predicción y estado del servicio.
+- `app/schemas.py`: esquemas Pydantic para validar solicitudes y respuestas.
+- `app/model_loader.py`: carga del modelo y preparación de características.
+- `models/mibici-equipo37-p2-riesgo/`: artefacto exportado del modelo P2.
+- `scripts/export_model.py`: exportación alternativa desde el Model Registry.
+- `Containerfile`: construcción de la imagen y configuración de ejecución.
+- `requirements-api.txt`: dependencias de inferencia con versiones especificadas.
+- `.dockerignore`: exclusiones del contexto de construcción.
+
+### Construir y ejecutar con Podman
+
+**Requisitos:** Podman instalado y, en macOS, la máquina virtual de Podman iniciada mediante `podman machine start`. Ejecutar los siguientes comandos desde la raíz del repositorio.
+
+Antes de construir, comprobar que existe `models/mibici-equipo37-p2-riesgo/MLmodel` y que está incluido el archivo `model.skops`. Si el modelo no está presente, hay que exportarlo previamente desde un Model Registry accesible (ver sección siguiente).
+
+```bash
+podman build --format docker -f Containerfile -t mibici-api:actividad8 .
+
+podman run -d --rm \
+  --name mibici-api \
+  -p 127.0.0.1:8000:8000 \
+  mibici-api:actividad8
+
+podman ps
+podman logs mibici-api
+```
+
+Se utiliza `--format docker` para conservar la instrucción `HEALTHCHECK` del `Containerfile`, que Podman omite al construir una imagen en formato OCI predeterminado. El servicio escucha en el puerto **8000**. El contenedor se ejecuta con un usuario sin privilegios de root.
+
+Como alternativa, si se utiliza Docker:
+
+```bash
+docker build -f Containerfile -t mibici-api:actividad8 .
+docker run -d --rm --name mibici-api -p 127.0.0.1:8000:8000 mibici-api:actividad8
+```
+
+La ejecución con Podman fue comprobada localmente. La ejecución con Docker se proporciona como alternativa compatible, pero debe verificarse si se utiliza ese motor.
+
+### Carga del modelo desde MLflow
+
+El modelo seleccionado es `mibici-equipo37-p2-riesgo` (P2), registrado en el **Model Registry de MLflow** con el alias `champion`. Se eligió **empaquetar el modelo previamente exportado** en la imagen para que la API pueda realizar inferencias sin conectarse a un servidor MLflow durante su ejecución.
+
+El cargador (`app/model_loader.py`) busca primero el modelo en la ruta definida por `MODEL_DIR` (en la imagen, `/app/models/mibici-equipo37-p2-riesgo`). Si no está disponible, puede cargarlo desde el Registry mediante `MLFLOW_TRACKING_URI`, utilizando la versión indicada por `MODEL_VERSION` o el alias definido por `MODEL_ALIAS` (por defecto, `champion`).
+
+Para exportar nuevamente el modelo, en un entorno que tenga las dependencias del proyecto y acceso al servidor de MLflow:
+
+```bash
+export MLFLOW_TRACKING_URI=http://localhost:5000
+python scripts/export_model.py --name mibici-equipo37-p2-riesgo --alias champion
+```
+
+Para que la imagen pueda construirse desde un clon limpio, el artefacto exportado debe estar disponible en la ruta indicada antes de ejecutar `podman build`, ya sea incluido en Git o recuperado mediante el procedimiento de exportación anterior.
+
+### Estado del servicio
+
+```bash
+curl -i http://localhost:8000/health
+```
+
+Respuesta observada:
+
+```http
+HTTP/1.1 200 OK
+```
+
+```json
+{"status":"ok"}
+```
+
+La verificación interna del contenedor también puede ejecutarse con:
+
+```bash
+podman healthcheck run mibici-api
+podman ps
+```
+
+En la prueba local, el comando de salud finalizó con código `0` y el contenedor apareció como `healthy`.
+
+### Predicción: POST /predict_p2/
+
+El endpoint recibe los valores de las características del modelo P2 en un objeto JSON y devuelve una predicción y un mensaje descriptivo. Los valores `0`, `1` y `2` corresponden a estación normal, riesgo de vaciado y riesgo de llenado, respectivamente.
+
+Petición de prueba:
+
+```bash
+curl -i -X POST http://localhost:8000/predict_p2/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hora": 5,
+    "ocup_est": 0.6,
+    "estado_est": 0,
+    "tend_1h": 0,
+    "sal_1h": 0,
+    "sal_2h": 0,
+    "sal_ayer_2h": 6,
+    "sal_sem_2h": 0,
+    "sal_media7_2h": 3.14,
+    "lle_1h": 0,
+    "lle_2h": 0,
+    "lle_ayer_2h": 1,
+    "lle_sem_2h": 0,
+    "lle_media7_2h": 2.14,
+    "frac_vacio_7d": 0.4,
+    "frac_lleno_7d": 0.4,
+    "riesgo_ayer": 0,
+    "dia_semana": 5,
+    "fin_semana": 1,
+    "festivo": 0,
+    "C": 15,
+    "lat": 20.6664,
+    "lon": -103.3488
+  }'
+```
+
+Resultado observado (HTTP `200 OK`):
+
+```json
+{
+  "prediction": 0,
+  "message": "La estacion estara normal por las siguientes 2 hrs, no requiere accion"
+}
+```
+
+La documentación interactiva está disponible en <http://localhost:8000/docs> mientras el contenedor se encuentre en ejecución.
+
+### Validación de entradas
+
+Los esquemas Pydantic definidos en `app/schemas.py` validan tipos, rangos, presencia de campos requeridos y campos no permitidos. Por ejemplo, `hora` debe estar entre `0` y `23`.
+
+```bash
+curl -i -X POST http://localhost:8000/predict_p2/ \
+  -H "Content-Type: application/json" \
+  -d '{"hora":30}'
+```
+
+La petición devuelve **HTTP 422 Unprocessable Entity**, con detalles de la hora fuera de rango y de los campos requeridos que faltan. El resultado completo se guarda en [`docs/evidencia_validacion_422.txt`](docs/evidencia_validacion_422.txt).
+
+### Estrategia de despliegue
+
+Se eligió **inferencia en tiempo real mediante una API REST** porque la pregunta P2 busca identificar el riesgo de vaciado o llenado de una estación en las próximas dos horas a partir de su estado y demanda reciente. Una solicitud HTTP permite consultar el modelo cuando se reciben o actualizan las características de una estación, sin ejecutar de nuevo el entrenamiento.
+
+Esta actividad despliega únicamente el servicio de predicción: la construcción de las variables de entrada y su actualización en un entorno operativo no forman parte del contenedor. Para una operación continua futura podrían integrarse procesos de actualización de datos y consultas por lotes para muchas estaciones. La estrategia actual permite validar un primer servicio reproducible y desacoplado de la etapa de entrenamiento.
+
+### Evidencias de ejecución
+
+La siguiente captura muestra una solicitud al endpoint de predicción desde la documentación de FastAPI, con respuesta **HTTP 200**:
+
+![Predicción de la API P2](docs/evidencia_api.png)
+
+La respuesta a una petición inválida se documenta en [`evidencia_validacion_422.txt`](docs/evidencia_validacion_422.txt).
+
+Para detener el contenedor:
+
+```bash
+podman stop mibici-api
+```
 
 ## Flujo de trabajo con Git
 
