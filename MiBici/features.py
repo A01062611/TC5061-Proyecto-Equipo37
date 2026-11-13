@@ -34,6 +34,8 @@ app = typer.Typer(help="Construye las features de P2 y P3. Sin subcomando, corre
 FESTIVOS = pd.to_datetime([
     "2024-01-01", "2024-02-05", "2024-03-18", "2024-05-01", "2024-09-16", "2024-10-01", "2024-11-18", "2024-12-25",
     "2025-01-01", "2025-02-03", "2025-03-17", "2025-05-01", "2025-09-16", "2025-11-17", "2025-12-25",
+    # 2026: periodo de monitoreo (no cambia la tabla de entrenamiento)
+    "2026-01-01", "2026-02-02", "2026-03-16", "2026-05-01", "2026-09-16", "2026-11-16", "2026-12-25",
 ])
 
 
@@ -128,8 +130,9 @@ PARAMS_P2 = {
 # Los parámetros del modelo y de la evaluación (hiperparámetros, semilla, k) están en
 # modeling/train_p2.py: no cambian la tabla, así que se ajustan sin regenerarla.
 CLASES_P2 = ["normal", "vaciado", "llenado"]
-# `hora` sí es feature
-NO_FEATURES_P2 = ["estacion", "dia", "particion", "clase"]
+# `hora` sí es feature. Las columnas de monitoreo tampoco lo son.
+NO_FEATURES_P2 = ["estacion", "dia", "particion", "clase",
+                  "periodo", "estacion_nueva", "pred", "proba_normal", "proba_vaciado", "proba_llenado"]
 
 OUT_DIR_P2 = PROCESSED_DATA_DIR / "p2"
 
@@ -272,6 +275,19 @@ def calcular_s0(c_train: pd.DataFrame, estaciones, capacidad: pd.Series, min_dia
     extra = pd.DataFrame({"estacion": faltan, "C": [int(capacidad[e]) for e in faltan], "dias_train": 0})
     extra["s0"], extra["metodo"] = extra["C"] // 2, "fallback_cs2"
     return pd.concat([out, extra], ignore_index=True).set_index("estacion")
+
+
+def completar_s0(s0_est: pd.DataFrame, estaciones, capacidad: pd.Series) -> pd.DataFrame:
+    """Agrega ⌊Cₛ/2⌋ a un ŝ₀ ya calculado para las estaciones que no tiene.
+
+    Sirve para construir la tabla de un periodo posterior (monitoreo) con el ŝ₀ del
+    entrenamiento.
+    """
+    faltan = sorted(set(estaciones) - set(s0_est.index))
+    extra = pd.DataFrame({"C": [int(capacidad[e]) for e in faltan], "dias_train": 0},
+                         index=pd.Index(faltan, name="estacion"))
+    extra["s0"], extra["metodo"] = extra["C"] // 2, "fallback_cs2"
+    return pd.concat([s0_est, extra]) if faltan else s0_est
 
 
 def validar_proxy(cotas: pd.DataFrame, s0_est: pd.DataFrame) -> dict:
@@ -505,7 +521,8 @@ def features_de_p2(tabla: pd.DataFrame) -> list[str]:
     return [c for c in tabla.columns if c not in NO_FEATURES_P2]
 
 
-def construir_dataset_p2(trips_path: Path, stations_path: Path, params: dict = PARAMS_P2) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+def construir_dataset_p2(trips_path: Path, stations_path: Path, params: dict = PARAMS_P2,
+                         s0_est: pd.DataFrame | None = None) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     """Pipeline completo de P2: CSV de viajes → tabla de modelado.
 
     Carga y limpia los viajes, construye los eventos, calcula las cotas, ŝ₀, la validación 
@@ -516,6 +533,10 @@ def construir_dataset_p2(trips_path: Path, stations_path: Path, params: dict = P
     Concentra en una sola llamada todo lo que necesita el entrenamiento, y el
     resumen se guarda junto con la tabla para que los parámetros registrados en MLflow
     sean los que de verdad generaron los datos.
+
+    Si se pasa `s0_est` (el ŝ₀ del entrenamiento), se usa en lugar de calcularlo con la
+    partición train, y solo se completan las estaciones que no tiene. Es lo que necesita
+    un periodo de monitoreo, que no tiene partición train propia.
     """
     stations = cargar_estaciones(stations_path)
     capacidad = stations.set_index("id")["dpcapacity"]
@@ -540,9 +561,12 @@ def construir_dataset_p2(trips_path: Path, stations_path: Path, params: dict = P
     info["estacion_dias"] = len(cotas)
     info["pct_infactible"] = cotas.groupby("particion")["infactible"].mean().round(4).to_dict()
 
-    s0_est = calcular_s0(cotas[cotas["particion"] == "train"], cotas["estacion"].unique(), capacidad, params["min_dias_s0"])
+    if s0_est is None:
+        s0_est = calcular_s0(cotas[cotas["particion"] == "train"], cotas["estacion"].unique(), capacidad, params["min_dias_s0"])
+        info["proxy"] = validar_proxy(cotas, s0_est)
+    else:
+        s0_est = completar_s0(s0_est, cotas["estacion"].unique(), capacidad)
     info["s0_metodos"] = s0_est["metodo"].value_counts().to_dict()
-    info["proxy"] = validar_proxy(cotas, s0_est)
 
     malla = malla_y_etiqueta(ev, cotas, s0_est, params)
     tabla = construir_tabla_p2(ev, cotas, stations, malla, params)
