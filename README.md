@@ -21,6 +21,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Pruebas automatizadas de P1](#pruebas-automatizadas-de-p1)
 - [Calidad de datos, pruebas integradas y seguridad (Actividad 7)](#calidad-de-datos-pruebas-integradas-y-seguridad-actividad-7)
 - [API REST con Podman (Actividad 8)](#api-rest-con-podman-actividad-8)
+- [Monitoreo: drift y A/B testing (Entregable 8)](#monitoreo-drift-y-ab-testing-entregable-8)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
@@ -55,10 +56,12 @@ Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a
 
 **Versión de los datos:** [`references/data_manifest.json`](references/data_manifest.json) guarda la URL, el SHA-256 y el número de registros de cada archivo mensual y del CSV consolidado. `data_version` es el SHA-256 del consolidado, el mismo valor que cada run registra en MLflow como `datos_sha256`.
 
+**Periodo de monitoreo:** junio a octubre de 2026 (2,261,914 viajes) se descarga aparte, con su propio manifiesto ([`references/data_manifest_monitoreo.json`](references/data_manifest_monitoreo.json)), para no cambiar la versión de los datos con la que se entrenó el modelo. Ver [Monitoreo](#monitoreo-drift-y-ab-testing-entregable-8).
+
 ## Estructura del repositorio
 
 ```
-├── MLproject               <- MLflow Project: entry points ingest, train, search y main
+├── MLproject               <- MLflow Project: entry points ingest, ingest_monitoreo, monitoring, train, search, register y main
 ├── python_env.yaml         <- entorno del MLflow Project (mismas versiones que requirements.txt)
 ├── .env.example            <- variables de MLflow; copiar a .env
 ├── Makefile                <- make data, make lint, make format, make test
@@ -68,12 +71,13 @@ Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a
 ├── mlflow.db, mlartifacts/ <- base y artefactos del servidor de MLflow (no se versionan)
 ├── data/                   <- no se versiona en Git
 │   ├── raw/mensuales/      <- CSV mensuales y nomenclatura, tal como se descargan
-│   ├── interim/            <- CSV consolidado y normalizado (lo genera dataset.py)
-│   └── processed/          <- tablas de modelado por pregunta
+│   ├── interim/            <- CSV consolidados y normalizados: 2024–2025 y monitoreo 2026 (los genera dataset.py)
+│   └── processed/          <- tablas de modelado por pregunta y conjuntos de monitoreo (monitoring/)
 ├── models/                 <- modelo P2 exportado para despliegue; otros modelos no se versionan
 ├── notebooks/              <- exploración; convención: número-iniciales-descripción
 ├── references/
-│   └── data_manifest.json  <- versión de los datos (hash y registros por archivo)
+│   ├── data_manifest.json  <- versión de los datos (hash y registros por archivo)
+│   └── data_manifest_monitoreo.json <- lo mismo para el periodo de monitoreo (2026-06 a 2026-10)
 ├── reports/figures/        <- gráficas por pregunta (p2/, p3/) y diagrama de arquitectura
 ├── tests/                  <- pruebas con pytest
 └── MiBici/                 <- código fuente
@@ -81,6 +85,8 @@ Los datos no traen el inventario de las estaciones, así que P2 lo reconstruye a
     ├── dataset.py          <- ingesta: descarga, normalización, consolidación y manifiesto
     ├── features.py         <- feature engineering por secciones: común, P2 y P3
     ├── plots.py
+    ├── monitoring/
+    │   └── datasets.py     <- conjuntos de monitoreo de P2: referencia, actual y ventanas del A/B
     └── modeling/
         ├── train.py        <- punto de entrada del MLproject: despacha a cada pregunta
         ├── register.py     <- Model Registry: registra el modelo elegido, su linaje y su alias
@@ -160,6 +166,14 @@ Tarda alrededor de un minuto con los archivos ya descargados. Para comprobar que
 python -m MiBici.dataset --solo-verificar
 ```
 
+El periodo de monitoreo (2026-06 a 2026-10) tiene su propio comando, que sigue los mismos pasos pero escribe `data/interim/mibici_2026_06_10.csv` y `references/data_manifest_monitoreo.json`:
+
+```bash
+mlflow run . -e ingest_monitoreo --experiment-name mibici-equipo37 --env-manager local    # o: python -m MiBici.dataset monitoreo
+```
+
+Septiembre de 2026 trae 758 filas repetidas (copias exactas de otra fila). La ingesta quita las filas idénticas, registra cuántas en el manifiesto (`duplicados`) y solo falla si un mismo `Viaje_Id` aparece con datos distintos.
+
 ## Features
 
 Las features se construyen con `MiBici/features.py` y quedan en `data/processed/`. P2 necesita su tabla antes de entrenar (si no existe, `train_p2` la genera); P3 calcula el perfil dentro de `train_p3`, así que `features p3` solo sirve para revisarlo:
@@ -177,6 +191,8 @@ Todas las corridas se lanzan con `mlflow run` desde la raíz, con el servidor le
 | Entry point | Qué hace | Parámetros |
 |---|---|---|
 | `ingest` | Descarga y consolida los datos (`dataset.py`) | `desde`, `hasta` |
+| `ingest_monitoreo` | Descarga y consolida el periodo de monitoreo, 2026-06 a 2026-10 (`dataset.py monitoreo`) | — |
+| `monitoring` | Genera los conjuntos de monitoreo de P2 con la predicción del champion (`monitoring/datasets.py`) | — |
 | `train` | Entrena un modelo de una pregunta, o el modelo por defecto de todas | `question` (`p1`, `p2`, `p3` o `all`), `model` y sus hiperparámetros |
 | `search` | Búsqueda de hiperparámetros con nested runs: una corrida padre y una hija por combinación | `question`, `model` |
 | `main` | Ingesta, features y `train` con `question=all` | `question` |
@@ -564,6 +580,52 @@ Para detener el contenedor:
 
 ```bash
 podman stop mibici-api
+```
+
+## Monitoreo: drift y A/B testing (Entregable 8)
+
+Se monitorea el modelo P2 en producción (`mibici-equipo37-p2-riesgo@champion`). El "periodo de producción" son datos abiertos posteriores al entrenamiento: julio a octubre de 2026, un año después y con la red de estaciones de 2026.
+
+### Conjuntos
+
+| Conjunto | Periodo (día operativo) | Filas | Estaciones (nuevas) | Uso |
+|---|---|---:|---:|---|
+| `reference` | 2024-01-01 a 2025-06-30 | 3,261,440 | 371 (0) | Partición train del champion. Base del reporte de drift |
+| `current` | 2026-07-01 a 2026-10-30 | 1,014,620 | 470 (101) | Periodo de producción. Lado actual del reporte de drift |
+| `retrain` | 2026-07-01 a 2026-08-31 | 512,160 | 468 (100) | Solo para entrenar el challenger |
+| `ab_eval` | 2026-09-01 a 2026-10-30 | 502,460 | 469 (101) | Solo para el A/B. Ningún modelo la ve al entrenar |
+
+Julio a octubre coincide en temporada con meses que sí están en el entrenamiento (julio a diciembre de 2024), así que el drift que aparezca se puede atribuir al paso del tiempo y a los cambios en la red, no a la estacionalidad.
+
+### Cómo se generan
+
+Con los datos de entrenamiento y la tabla de P2 ya construidos (`python -m MiBici.features p2`):
+
+```bash
+mlflow run . -e ingest_monitoreo --experiment-name mibici-equipo37 --env-manager local    # o: python -m MiBici.dataset monitoreo
+mlflow run . -e monitoring --experiment-name mibici-equipo37 --env-manager local          # o: python -m MiBici.monitoring.datasets
+```
+
+Las salidas quedan en `data/processed/monitoring/`:
+
+- `reference.parquet`, `current.parquet`, `retrain.parquet` y `ab_eval.parquet`.
+- `s0_por_estacion.csv`: el inventario inicial típico (ŝ₀) usado en el periodo actual.
+- `info.json`: filas, estaciones, fechas y distribución de `clase` y de la predicción por conjunto, el modelo usado (URI, run y τ) y la limpieza de viajes.
+
+Los cuatro parquet tienen las mismas 32 columnas y los mismos tipos:
+
+| Columnas | Contenido |
+|---|---|
+| `estacion`, `dia`, `periodo` | Identificadores. `periodo` vale `reference`, `retrain` o `ab_eval` |
+| `estacion_nueva` | La estación no aparece en la referencia. Sirve para reportar su drift aparte |
+| `clase` | Etiqueta real: 0 normal, 1 vaciado, 2 llenado |
+| 23 features | Las mismas del modelo. Se obtienen con `features_de_p2(tabla)`, que excluye las demás columnas |
+| `pred`, `proba_normal`, `proba_vaciado`, `proba_llenado` | Predicción y probabilidades del champion |
+
+Para comprobar los conjuntos (mismo esquema, fechas dentro de su periodo, estaciones nuevas y predicciones válidas):
+
+```bash
+python -m pytest tests/test_monitoring_datasets.py
 ```
 
 ## Flujo de trabajo con Git

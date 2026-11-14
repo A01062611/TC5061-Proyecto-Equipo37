@@ -1,0 +1,81 @@
+{
+  "data_version": "969d12fbdedd1b380b2dede0ac56d6b110e82804da11a69fe2ed14080bdb938b",
+  "fuente": "https://www.mibici.net/es/datos-abiertos/",
+  "rango": {
+    "desde": "2026-06",
+    "hasta": "2026-10"
+  },
+  "viajes_mensuales": [
+    {
+      "mes": "2026-06",
+      "archivo": "data/raw/mensuales/datos_abiertos_2026_06.csv",
+      "url": "https://www.mibici.net/site/assets/files/127734/datos_abiertos_2026_06.csv",
+      "sha256": "a4d195786a3599b155829288a0432cd9e76c6780dc693c0e9579d11e11c49a27",
+      "encoding": "utf-8",
+      "formato_fecha": "iso",
+      "registros": 355303,
+      "duplicados": 0
+    },
+    {
+      "mes": "2026-07",
+      "archivo": "data/raw/mensuales/datos_abiertos_2026_07.csv",
+      "url": "https://www.mibici.net/site/assets/files/129006/datos_abiertos_2026_07.csv",
+      "sha256": "3f9db9fed985977b175001a984302eae7c61326a75ed93afae9c8fc17bbdb922",
+      "encoding": "utf-8",
+      "formato_fecha": "iso",
+      "registros": 388257,
+      "duplicados": 0
+    },
+    {
+      "mes": "2026-08",
+      "archivo": "data/raw/mensuales/datos_abiertos_2026_08.csv",
+      "url": "https://www.mibici.net/site/assets/files/130362/datos_abiertos_2026_08.csv",
+      "sha256": "e34f39b9ad204ae0b66f3538894a5f86ed03f46d98701169d3e4d95952d5f671",
+      "encoding": "utf-8",
+      "formato_fecha": "iso",
+      "registros": 393524,
+      "duplicados": 0
+    },
+    {
+      "mes": "2026-09",
+      "archivo": "data/raw/mensuales/datos_abiertos_2026_09.csv",
+      "url": "https://www.mibici.net/site/assets/files/131825/datos_abiertos_2026_09.csv",
+      "sha256": "00b5cf64cc31a502d01044d905f6e033f9bc1db962e771119742fd25c6cb58b3",
+      "encoding": "utf-8",
+      "formato_fecha": "iso",
+      "registros": 489298,
+      "duplicados": 758
+    },
+    {
+      "mes": "2026-10",
+      "archivo": "data/raw/mensuales/datos_abiertos_2026_10.csv",
+      "url": "https://www.mibici.net/site/assets/files/133188/datos_abiertos_2026_10.csv",
+      "sha256": "0cdfb05299e6db658ac9cc7723494a9704b0749e3671c29c8566826ea889b900",
+      "encoding": "utf-8",
+      "formato_fecha": "iso",
+      "registros": 635532,
+      "duplicados": 0
+    }
+  ],
+  "nomenclatura": {
+    "archivo": "data/raw/mensuales/nomenclatura_2026_09.csv",
+    "url": "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_09.csv",
+    "sha256": "206e45fe633922b634d858142fa21e6fd9f4c421b6435c02980ef290cc2df90d",
+    "registros": 484
+  },
+  "consolidado": {
+    "archivo": "data/interim/mibici_2026_06_10.csv",
+    "sha256": "969d12fbdedd1b380b2dede0ac56d6b110e82804da11a69fe2ed14080bdb938b",
+    "registros": 2261914,
+    "columnas": [
+      "Viaje_Id",
+      "Usuario_Id",
+      "Genero",
+      "Anio_de_nacimiento",
+      "Inicio_del_viaje",
+      "Fin_del_viaje",
+      "Origen_Id",
+      "Destino_Id"
+    ]
+  }
+}

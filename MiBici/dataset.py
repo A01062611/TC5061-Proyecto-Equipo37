@@ -33,7 +33,7 @@ from loguru import logger
 import pandas as pd
 import typer
 
-from MiBici.config import PROJ_ROOT, RAW_DATA_DIR, STATIONS_CSV, TRIPS_CSV
+from MiBici.config import MONITOREO_DESDE, MONITOREO_HASTA, MONITOREO_MANIFEST, MONITOREO_TRIPS_CSV, PROJ_ROOT, RAW_DATA_DIR, STATIONS_CSV, TRIPS_CSV
 
 app = typer.Typer()
 
@@ -68,6 +68,11 @@ ARCHIVOS_VIAJES = {
     "2025-10": (115104, "datos_abiertos_2025_10.csv"),
     "2025-11": (116773, "datos_abiertos_2025_11.csv"),
     "2025-12": (118153, "datos_abiertos_2025_12.csv"),
+    "2026-06": (127734, "datos_abiertos_2026_06.csv"),
+    "2026-07": (129006, "datos_abiertos_2026_07.csv"),
+    "2026-08": (130362, "datos_abiertos_2026_08.csv"),
+    "2026-09": (131825, "datos_abiertos_2026_09.csv"),
+    "2026-10": (133188, "datos_abiertos_2026_10.csv"),
 }
 NOMENCLATURA = (1118, "nomenclatura_2026_09.csv")
 
@@ -143,6 +148,7 @@ def leer_mes(path: Path, mes: str) -> tuple[pd.DataFrame, dict]:
     """
     texto, encoding = decodificar(path.read_bytes())
     df = pd.read_csv(io.StringIO(texto), dtype=str, keep_default_na=False)
+    duplicados = int(df.duplicated().sum())
     if df.shape[1] != len(COLUMNAS):
         raise ValueError(f"{path.name}: se esperaban {len(COLUMNAS)} columnas y hay {df.shape[1]}: {list(df.columns)}")
     df.columns = COLUMNAS
@@ -155,13 +161,20 @@ def leer_mes(path: Path, mes: str) -> tuple[pd.DataFrame, dict]:
     fuera = ~df["Inicio_del_viaje"].str.startswith(mes)
     if fuera.any():
         raise ValueError(f"{path.name}: {int(fuera.sum())} viajes inician fuera de {mes}")
+
+    # Eliminamos duplicados, se reporta en el manifiesto
+    if duplicados > 0:
+        logger.warning(f"{path.name}: se eliminaron {duplicados} filas duplicadas")
+        df = df.drop_duplicates()
+
+    # Revisamos si no quedaron ids duplicados, se levanta error
     if df["Viaje_Id"].duplicated().any():
         raise ValueError(f"{path.name}: hay Viaje_Id duplicados")
     for col in ["Viaje_Id", "Origen_Id", "Destino_Id"]:
         if not df[col].str.fullmatch(r"\d+").all():
             raise ValueError(f"{path.name}: {col} tiene valores no numéricos")
 
-    info = {"encoding": encoding, "formato_fecha": "/".join(sorted(formatos)), "registros": len(df)}
+    info = {"encoding": encoding, "formato_fecha": "/".join(sorted(formatos)), "registros": len(df), "duplicados": duplicados}
     return df, info
 
 
@@ -213,23 +226,16 @@ def verificar(manifest_path: Path = MANIFEST_PATH) -> bool:
     return ok
 
 
-# --------------------------------------------------------------------------- punto de entrada
-
-@app.command()
-def main(
-    desde: str = typer.Option("2024-01", help="Primer mes (aaaa-mm)"),
-    hasta: str = typer.Option("2025-12", help="Último mes (aaaa-mm)"),
+#--------------------------------------------------------------------------- Funcion de ingesta
+def ingesta(
+    desde: str = "2024-01",
+    hasta: str = "2025-12",
     salida: Path = TRIPS_CSV,
     estaciones: Path = STATIONS_CSV,
-    forzar_descarga: bool = typer.Option(False, help="Volver a descargar aunque los archivos ya existan"),
-    solo_verificar: bool = typer.Option(False, help="Solo comparar los archivos locales con el manifiesto"),
+    forzar_descarga: bool = False,
+    manifiesto_path: Path = MANIFEST_PATH,
 ):
-    if solo_verificar:
-        if not verificar():
-            raise typer.Exit(code=1)
-        logger.success(f"Los datos locales coinciden con el manifiesto (data_version={data_version()[:12]}…)")
-        return
-
+    """ Funcion principal de ingesta de datos, descarga y consolida los viajes y la nomenclatura de estaciones de MiBici."""
     meses = [m for m in ARCHIVOS_VIAJES if desde <= m <= hasta]
     if not meses:
         raise typer.BadParameter(f"no hay meses entre {desde} y {hasta}")
@@ -241,7 +247,7 @@ def main(
     logger.info(f"Normalizando, validando y consolidando en {ruta_relativa(salida)}...")
     infos = consolidar(archivos, salida)
     mensuales = [{"mes": mes, "archivo": ruta_relativa(path), "url": url_de(*ARCHIVOS_VIAJES[mes]),
-                  "sha256": sha256_archivo(path), **infos[mes]} for mes, path in archivos.items()]
+                "sha256": sha256_archivo(path), **infos[mes]} for mes, path in archivos.items()]
     total = sum(m["registros"] for m in mensuales)
 
     estaciones.parent.mkdir(parents=True, exist_ok=True)
@@ -257,10 +263,49 @@ def main(
                          "registros": len(pd.read_csv(nom))},
         "consolidado": {"archivo": ruta_relativa(salida), "sha256": version, "registros": total, "columnas": COLUMNAS},
     }
-    MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-    MANIFEST_PATH.write_text(json.dumps(manifiesto, indent=2, ensure_ascii=False) + "\n")
+    manifiesto_path.parent.mkdir(parents=True, exist_ok=True)
+    manifiesto_path.write_text(json.dumps(manifiesto, indent=2, ensure_ascii=False) + "\n")
     logger.success(f"{total:,} viajes de {meses[0]} a {meses[-1]} · data_version={version[:12]}… · "
-                   f"manifiesto en {ruta_relativa(MANIFEST_PATH)}")
+                   f"manifiesto en {ruta_relativa(manifiesto_path)}")
+
+#--------------------------------------------------------------------------- descarga de monitoreo
+@app.command()
+def monitoreo(forzar_descarga: bool = False):
+    """Descarga y consolida el periodo de monitoreo."""
+    ingesta(
+        desde=MONITOREO_DESDE,
+        hasta=MONITOREO_HASTA,
+        salida=MONITOREO_TRIPS_CSV,
+        estaciones=STATIONS_CSV,
+        forzar_descarga=forzar_descarga,
+        manifiesto_path=MONITOREO_MANIFEST
+    )
+
+
+# --------------------------------------------------------------------------- punto de entrada
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    desde: str = typer.Option("2024-01", help="Primer mes (aaaa-mm)"),
+    hasta: str = typer.Option("2025-12", help="Último mes (aaaa-mm)"),
+    salida: Path = TRIPS_CSV,
+    estaciones: Path = STATIONS_CSV,
+    forzar_descarga: bool = typer.Option(False, help="Volver a descargar aunque los archivos ya existan"),
+    solo_verificar: bool = typer.Option(False, help="Solo comparar los archivos locales con el manifiesto"),
+    manifiesto_path: Path = MANIFEST_PATH,
+):
+    # Si se invoca un subcomando, no se ejecuta la lógica de descarga y consolidación
+    if ctx.invoked_subcommand is not None:
+        return
+    
+    if solo_verificar:
+        if not verificar():
+            raise typer.Exit(code=1)
+        logger.success(f"Los datos locales coinciden con el manifiesto (data_version={data_version(manifiesto_path)[:12]}…)")
+        return
+
+    ingesta(desde=desde, hasta=hasta, salida=salida, estaciones=estaciones, forzar_descarga=forzar_descarga, manifiesto_path=manifiesto_path)
 
 
 if __name__ == "__main__":

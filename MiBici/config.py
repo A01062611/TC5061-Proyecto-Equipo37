@@ -29,6 +29,13 @@ FECHA_FIN = "2025-12-31"
 TRAIN_FIN = "2025-06-30"
 VALIDATION_FIN = "2025-09-30"
 
+# Monitoreo: periodo posterior al entrenamiento
+MONITOREO_DESDE = "2026-06"
+MONITOREO_HASTA = "2026-10"
+MONITOREO_TRIPS_CSV = INTERIM_DATA_DIR / "mibici_2026_06_10.csv"
+MONITOREO_MANIFEST = PROJ_ROOT / "references" / "data_manifest_monitoreo.json"
+MONITORING_DATA_DIR = PROCESSED_DATA_DIR / "monitoring"
+
 # Reproducibility
 SEED = 42
 

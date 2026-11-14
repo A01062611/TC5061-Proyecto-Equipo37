@@ -21,6 +21,12 @@ entry_points:
       --desde {desde} 
       --hasta {hasta}
 
+  ingest_monitoreo:
+    command: python -m MiBici.dataset monitoreo
+
+  monitoring:
+    command: python -m MiBici.monitoring.datasets
+
   train:
     parameters:
       question : {type: string, default: all}
