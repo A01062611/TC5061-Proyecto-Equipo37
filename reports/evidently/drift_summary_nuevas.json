@@ -1,0 +1,151 @@
+{
+  "descripcion": "reference vs current · estaciones: nuevas",
+  "seed": 42,
+  "filas_referencia": 10000,
+  "filas_actual": 10000,
+  "dataset": {
+    "columnas_con_drift": 18,
+    "proporcion": 0.782608695652174,
+    "umbral_dataset": 0.5
+  },
+  "variables": {
+    "ocup_est": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.36809515786058244,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "estado_est": {
+      "metodo": "Jensen-Shannon distance",
+      "score": 0.07408327596819113,
+      "umbral": 0.1,
+      "drift": false
+    },
+    "tend_1h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.29218845107742636,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "sal_1h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.35937979251218083,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "sal_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.37163821565435656,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "sal_ayer_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.4181015856660728,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "sal_sem_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.43772770087261104,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "sal_media7_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.5125608198190695,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "lle_1h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.3821660355993922,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "lle_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.384357697629136,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "lle_ayer_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.41638390210347287,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "lle_sem_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.44540863337277964,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "lle_media7_2h": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.49396964323663983,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "frac_vacio_7d": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.6353459149930933,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "frac_lleno_7d": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.7249144583223934,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "C": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.48709030720988417,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "lat": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.3314141354789699,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "lon": {
+      "metodo": "Wasserstein distance (normed)",
+      "score": 0.5762592659057878,
+      "umbral": 0.1,
+      "drift": true
+    },
+    "hora": {
+      "metodo": "Jensen-Shannon distance",
+      "score": 0.01608712016982774,
+      "umbral": 0.1,
+      "drift": false
+    },
+    "dia_semana": {
+      "metodo": "Jensen-Shannon distance",
+      "score": 0.033798680068644,
+      "umbral": 0.1,
+      "drift": false
+    },
+    "fin_semana": {
+      "metodo": "Jensen-Shannon distance",
+      "score": 0.031694120577435,
+      "umbral": 0.1,
+      "drift": false
+    },
+    "festivo": {
+      "metodo": "Jensen-Shannon distance",
+      "score": 0.041127265829808926,
+      "umbral": 0.1,
+      "drift": false
+    },
+    "riesgo_ayer": {
+      "metodo": "Jensen-Shannon distance",
+      "score": 0.10436902034559924,
+      "umbral": 0.1,
+      "drift": true
+    }
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "tau": 0.15,
+  "metricas": {
+    "validacion": {
+      "filas": 568180,
+      "estaciones": 367,
+      "clase": {
+        "normal": 0.8658,
+        "vaciado": 0.0697,
+        "llenado": 0.0645
+      },
+      "pred": {
+        "normal": 0.7684,
+        "vaciado": 0.1211,
+        "llenado": 0.1105
+      },
+      "accuracy": 0.861820197824633,
+      "F2 macro": 0.7365122974821344,
+      "recall": {
+        "normal": 0.8647164169395675,
+        "vaciado": 0.8377470056097438,
+        "llenado": 0.8489459761651531
+      },
+      "logloss": 0.20033172358390108,
+      "AP vaciado": 0.7601229829982457,
+      "Brier vaciado": 0.030544945651454134,
+      "AP llenado": 0.7622509820989305,
+      "Brier llenado": 0.028025325527142847,
+      "F2 vaciado": 0.729930382171495,
+      "F2 llenado": 0.7430942127927739
+    },
+    "referencia_train": {
+      "filas": 3261440,
+      "estaciones": 371,
+      "clase": {
+        "normal": 0.8611,
+        "vaciado": 0.0697,
+        "llenado": 0.0692
+      },
+      "pred": {
+        "normal": 0.769,
+        "vaciado": 0.1161,
+        "llenado": 0.1149
+      },
+      "accuracy": 0.8683777717817897,
+      "F2 macro": 0.753069326239656,
+      "recall": {
+        "normal": 0.8708670675006178,
+        "vaciado": 0.8480736591242866,
+        "llenado": 0.8578541784903518
+      },
+      "logloss": 0.19270241368295885,
+      "AP vaciado": 0.7896491442986876,
+      "Brier vaciado": 0.02869547715088802,
+      "AP llenado": 0.7943152862404278,
+      "Brier llenado": 0.028023225165770747,
+      "F2 vaciado": 0.7484357950321068,
+      "F2 llenado": 0.7577028574472051
+    },
+    "actual_todas": {
+      "filas": 1014620,
+      "estaciones": 470,
+      "clase": {
+        "normal": 0.8802,
+        "vaciado": 0.0612,
+        "llenado": 0.0586
+      },
+      "pred": {
+        "normal": 0.7862,
+        "vaciado": 0.1069,
+        "llenado": 0.1069
+      },
+      "accuracy": 0.8693264473398908,
+      "F2 macro": 0.7263326781825632,
+      "recall": {
+        "normal": 0.873285408758552,
+        "vaciado": 0.8288273773080269,
+        "llenado": 0.8521451146526797
+      },
+      "logloss": 0.18742117357419627,
+      "AP vaciado": 0.7511525558558366,
+      "Brier vaciado": 0.027273423044830603,
+      "AP llenado": 0.7289639510795787,
+      "Brier llenado": 0.027302870275174692,
+      "F2 vaciado": 0.7209689535705076,
+      "F2 llenado": 0.7316964027946187
+    },
+    "actual_existentes": {
+      "filas": 794480,
+      "estaciones": 369,
+      "clase": {
+        "normal": 0.8595,
+        "vaciado": 0.0703,
+        "llenado": 0.0702
+      },
+      "pred": {
+        "normal": 0.7461,
+        "vaciado": 0.1252,
+        "llenado": 0.1287
+      },
+      "accuracy": 0.843978451314067,
+      "F2 macro": 0.7242816985696504,
+      "recall": {
+        "normal": 0.8444225114513654,
+        "vaciado": 0.8322822230981474,
+        "llenado": 0.8502456165513285
+      },
+      "logloss": 0.22063685430305593,
+      "AP vaciado": 0.7481537254703866,
+      "Brier vaciado": 0.03157309209031118,
+      "AP llenado": 0.7278163008544679,
+      "Brier llenado": 0.032892120307186544,
+      "F2 vaciado": 0.7197284265846947,
+      "F2 llenado": 0.7288349705546061
+    },
+    "actual_nuevas": {
+      "filas": 220140,
+      "estaciones": 101,
+      "clase": {
+        "normal": 0.9548,
+        "vaciado": 0.0284,
+        "llenado": 0.0168
+      },
+      "pred": {
+        "normal": 0.9308,
+        "vaciado": 0.041,
+        "llenado": 0.0282
+      },
+      "accuracy": 0.9608067593349686,
+      "F2 macro": 0.7543443376412302,
+      "recall": {
+        "normal": 0.9670618797042563,
+        "vaciado": 0.7979846449136276,
+        "llenado": 0.8807339449541285
+      },
+      "logloss": 0.06754657547542099,
+      "AP vaciado": 0.7770361580438907,
+      "Brier vaciado": 0.01175602019549196,
+      "AP llenado": 0.7421716915784456,
+      "Brier llenado": 0.007131400458545395,
+      "F2 vaciado": 0.7327282340500528,
+      "F2 llenado": 0.7759604412324077
+    }
+  }
+}
