@@ -1,0 +1,82 @@
+{
+  "modelo": "mibici-equipo37-p2-riesgo",
+  "tipo_evaluacion": "offline_pareada",
+  "periodo": {
+    "desde": "2026-09-01 00:00:00",
+    "hasta": "2026-10-30 00:00:00"
+  },
+  "n_registros": 502260,
+  "n_estaciones": 469,
+  "versiones": {
+    "champion": {
+      "version": "1",
+      "run_id": "ad575b7112434688997d957f41fd875e",
+      "tau": 0.15
+    },
+    "challenger": {
+      "version": "2",
+      "run_id": "94efac61876e4b9c850a4f98899a695b",
+      "tau": 0.575
+    }
+  },
+  "metricas": {
+    "champion": {
+      "AP vaciado": 0.7485551235042622,
+      "Brier vaciado": 0.03099597428509621,
+      "AP llenado": 0.7223619859580972,
+      "Brier llenado": 0.030549483342821915,
+      "F2 vaciado": 0.7210893243997205,
+      "F2 llenado": 0.7317960397292339,
+      "F2 macro": 0.7264426820644772,
+      "Recall vaciado": 0.8268587896253602,
+      "Recall llenado": 0.850525412824362
+    },
+    "challenger": {
+      "AP vaciado": 0.745966668551549,
+      "Brier vaciado": 0.07087337172110944,
+      "AP llenado": 0.7254256317321994,
+      "Brier llenado": 0.06618646528990446,
+      "F2 vaciado": 0.7164653894318657,
+      "F2 llenado": 0.7288557846302464,
+      "F2 macro": 0.7226605870310561,
+      "Recall vaciado": 0.8606628242074928,
+      "Recall llenado": 0.8783738243313624
+    }
+  },
+  "diferencias": {
+    "AP vaciado": -0.002588454952713204,
+    "Brier vaciado": 0.039877397436013234,
+    "AP llenado": 0.0030636457741022305,
+    "Brier llenado": 0.03563698194708255,
+    "F2 vaciado": -0.004623934967854848,
+    "F2 llenado": -0.002940255098987543,
+    "F2 macro": -0.0037820950334210846,
+    "Recall vaciado": 0.03380403458213266,
+    "Recall llenado": 0.027848411507000348
+  },
+  "bootstrap": {
+    "n_estaciones": 469,
+    "n_bootstrap": 2000,
+    "seed": 42,
+    "f2_champion": 0.7264426820644772,
+    "f2_challenger": 0.7226605870310561,
+    "delta_f2": -0.0037820950334210846,
+    "ic95_inferior": -0.005659477929603351,
+    "ic95_superior": -0.0018148248432163715
+  },
+  "mcnemar": {
+    "solo_champion_acierta": 18470,
+    "solo_challenger_acierta": 5964,
+    "discordantes": 24434,
+    "estadistico": 6399.894614062372,
+    "p_valor": 0.0,
+    "metodo": "McNemar con correccion de continuidad"
+  },
+  "decision": {
+    "mejora_f2": false,
+    "ic95_positivo": false,
+    "recall_protegido": true,
+    "promover_challenger": false,
+    "modelo_recomendado": "champion"
+  }
+}
