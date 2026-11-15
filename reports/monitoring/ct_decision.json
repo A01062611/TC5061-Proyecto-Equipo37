@@ -1,0 +1,81 @@
+{
+  "umbrales": {
+    "caida_f2_max": 0.02,
+    "recall_min": 0.8,
+    "drift_ponderado_max": 0.3,
+    "estaciones_nuevas_min": 0.2,
+    "antiguedad_max_meses": 12,
+    "recall_caida_max": 0.02
+  },
+  "reentrenamiento": {
+    "reentrenar": true,
+    "urgencia": "programado",
+    "disparadores_urgentes": {
+      "caida_f2": {
+        "valor": 0.012072376087218784,
+        "umbral": 0.02,
+        "activo": false
+      },
+      "recall_min": {
+        "valor": 0.8305986457922832,
+        "umbral": 0.8,
+        "activo": false
+      },
+      "drift_ponderado_existentes": {
+        "valor": 0.13511545967653596,
+        "umbral": 0.3,
+        "activo": false
+      }
+    },
+    "disparadores_programados": {
+      "estaciones_nuevas": {
+        "valor": {
+          "filas": 0.2170920279278924,
+          "drift_ponderado": 0.8931030079146361
+        },
+        "umbral": {
+          "filas": 0.2,
+          "drift_ponderado": 0.3
+        },
+        "activo": true
+      },
+      "antiguedad_meses": {
+        "valor": 16,
+        "umbral": 12,
+        "activo": true
+      }
+    }
+  },
+  "promocion": {
+    "promover_challenger": false,
+    "modelo_en_produccion": "champion",
+    "criterios": {
+      "f2_mayor": false,
+      "ic95_inferior_positivo": false,
+      "recall_protegido": true
+    },
+    "delta_f2_macro": -0.0037820950334210846,
+    "ic95": [
+      -0.005659477929603351,
+      -0.0018148248432163715
+    ],
+    "versiones": {
+      "champion": {
+        "version": "1",
+        "run_id": "ad575b7112434688997d957f41fd875e",
+        "tau": 0.15
+      },
+      "challenger": {
+        "version": "2",
+        "run_id": "94efac61876e4b9c850a4f98899a695b",
+        "tau": 0.575
+      }
+    }
+  },
+  "alerta_evidently_existentes": {
+    "columnas_con_drift": 12,
+    "proporcion": 0.5217391304347826,
+    "umbral_dataset": 0.5,
+    "drift_del_conjunto": true
+  }
+}

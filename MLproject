@@ -27,6 +27,44 @@ entry_points:
   monitoring:
     command: python -m MiBici.monitoring.datasets
 
+  drift:
+    parameters:
+      tau: {type: float, default: 0.15}
+    command: >-
+      python -m MiBici.monitoring.drift --reference data/processed/monitoring/reference.parquet
+      --current data/processed/monitoring/current.parquet --estaciones todas
+      && python -m MiBici.monitoring.drift --reference data/processed/monitoring/reference.parquet
+      --current data/processed/monitoring/current.parquet --estaciones existentes
+      && python -m MiBici.monitoring.drift --reference data/processed/monitoring/reference.parquet
+      --current data/processed/monitoring/current.parquet --estaciones nuevas
+      && python -m MiBici.monitoring.clasificacion --tau {tau}
+      && python -m MiBici.monitoring.importancia --tau {tau}
+      && python -m MiBici.monitoring.figuras
+
+  ab_test:
+    command: python -m MiBici.monitoring.ab_test
+
+  ct_policy:
+    command: python -m MiBici.monitoring.ct_policy
+
+  monitor:
+    parameters:
+      tau: {type: float, default: 0.15}
+    command: >-
+      python -m MiBici.dataset monitoreo
+      && python -m MiBici.monitoring.datasets --tau {tau}
+      && python -m MiBici.monitoring.drift --reference data/processed/monitoring/reference.parquet
+      --current data/processed/monitoring/current.parquet --estaciones todas
+      && python -m MiBici.monitoring.drift --reference data/processed/monitoring/reference.parquet
+      --current data/processed/monitoring/current.parquet --estaciones existentes
+      && python -m MiBici.monitoring.drift --reference data/processed/monitoring/reference.parquet
+      --current data/processed/monitoring/current.parquet --estaciones nuevas
+      && python -m MiBici.monitoring.clasificacion --tau {tau}
+      && python -m MiBici.monitoring.importancia --tau {tau}
+      && python -m MiBici.monitoring.figuras
+      && python -m MiBici.monitoring.ab_test
+      && python -m MiBici.monitoring.ct_policy
+
   train:
     parameters:
       question : {type: string, default: all}

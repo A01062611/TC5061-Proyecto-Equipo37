@@ -13,10 +13,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import typer
 from evidently import DataDefinition, Dataset, Report
-from evidently.presets import DataDriftPreset
+from evidently.presets import DataDriftPreset, DataSummaryPreset
 
 from MiBici.features import features_de_p2
 
@@ -52,6 +53,19 @@ def _filtrar_estaciones(cur: pd.DataFrame, subconjunto: str) -> pd.DataFrame:
 def _muestrear(df: pd.DataFrame, n: int) -> pd.DataFrame:
     """Misma semilla en ambos lados para que el reporte sea reproducible."""
     return df if n <= 0 or len(df) <= n else df.sample(n=n, random_state=SEED)
+
+
+def _categoricas_a_texto(df: pd.DataFrame) -> pd.DataFrame:
+    """`DataSummaryPreset` solo acepta etiquetas de texto o tipos de Python.
+
+    Se pasan a texto ("7", "1") y los faltantes quedan como NaN, para que sigan contando como
+    nulos.
+    """
+    df = df.copy()
+    for c in CATEGORICAS:
+        if c in df:
+            df[c] = df[c].map(lambda v: np.nan if pd.isna(v) else str(int(v))).astype(object)
+    return df
 
 
 def _hubo_drift(metodo: str, score: float, umbral: float) -> bool:
@@ -95,12 +109,13 @@ def main(
     descripcion += f" · estaciones: {estaciones}"
     features = [c for c in features_de_p2(ref) if c in cur.columns]
     ref, cur = _muestrear(ref[features], muestra), _muestrear(cur[features], muestra)
+    ref, cur = _categoricas_a_texto(ref), _categoricas_a_texto(cur)
 
     definicion = DataDefinition(
         numerical_columns=[c for c in features if c not in CATEGORICAS],
         categorical_columns=[c for c in CATEGORICAS if c in features],
     )
-    snapshot = Report([DataDriftPreset()]).run(
+    snapshot = Report([DataDriftPreset(), DataSummaryPreset()]).run(
         Dataset.from_pandas(cur, data_definition=definicion),   # actual primero
         Dataset.from_pandas(ref, data_definition=definicion),
     )
