@@ -13,7 +13,8 @@
       "sha256": "01d1c136609df006410a2f8d9b925f20991e28cfe0c882ed67bca63b46b6d1a5",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 391591
+      "registros": 391591,
+      "duplicados": 0
     },
     {
       "mes": "2024-02",
@@ -22,7 +23,8 @@
       "sha256": "78254eb6b99b9b9fb46cc5bb58fd54bc9fed681d9c224143b99cf693deec8430",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 383732
+      "registros": 383732,
+      "duplicados": 0
     },
     {
       "mes": "2024-03",
@@ -31,7 +33,8 @@
       "sha256": "6c45a6ec1f136c58bfcb6fdd385c4e1ac2f4b887d0413dbf6e8b5c70a91da0d5",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 390513
+      "registros": 390513,
+      "duplicados": 0
     },
     {
       "mes": "2024-04",
@@ -40,7 +43,8 @@
       "sha256": "d60f68ebc083b0cea29d6e7a0e18eba95c4582220a79717df96365bf7dd33a11",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 405308
+      "registros": 405308,
+      "duplicados": 0
     },
     {
       "mes": "2024-05",
@@ -49,7 +53,8 @@
       "sha256": "21288117db70fad4e475cc5fb6acab174a84c09749170c0976337076aacc1b9e",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 410806
+      "registros": 410806,
+      "duplicados": 0
     },
     {
       "mes": "2024-06",
@@ -58,7 +63,8 @@
       "sha256": "cd073cecc62cd7a358b1a54f342ad78ca0fa6a94d039e97e1920ae3323cd91a5",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 365000
+      "registros": 365000,
+      "duplicados": 0
     },
     {
       "mes": "2024-07",
@@ -67,7 +73,8 @@
       "sha256": "0d6dab9e3c5d1ed6f43f5c3ce65aea9ea51cd151c62cd80d4e068668cb947748",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 364177
+      "registros": 364177,
+      "duplicados": 0
     },
     {
       "mes": "2024-08",
@@ -76,7 +83,8 @@
       "sha256": "4d6bd19355c8e8a0829b280ce8844bd2c1b82e5e3ffcfca3eee07e10d2efe796",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 394894
+      "registros": 394894,
+      "duplicados": 0
     },
     {
       "mes": "2024-09",
@@ -85,7 +93,8 @@
       "sha256": "d4f7653879861abb67ffda890dd79d0cc8b71edbb043162f19bb0125eaf60fd3",
       "encoding": "latin-1",
       "formato_fecha": "dd/mm/aaaa h:mm",
-      "registros": 390072
+      "registros": 390072,
+      "duplicados": 0
     },
     {
       "mes": "2024-10",
@@ -94,7 +103,8 @@
       "sha256": "9146623af19ea413a817a5077048b605ac5f4cd1bbe65f0d161ae39d2a9258c7",
       "encoding": "latin-1",
       "formato_fecha": "dd/mm/aaaa h:mm",
-      "registros": 418690
+      "registros": 418690,
+      "duplicados": 0
     },
     {
       "mes": "2024-11",
@@ -103,7 +113,8 @@
       "sha256": "85607feef22f75f1a1893ec5dbd3f8cfc1d01a2ef1c206418629ef672b2582ac",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 391089
+      "registros": 391089,
+      "duplicados": 0
     },
     {
       "mes": "2024-12",
@@ -112,7 +123,8 @@
       "sha256": "4541d595fb6c539007b9309d128036356c128f2f523fe8b009050e3bf633c7d0",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 340049
+      "registros": 340049,
+      "duplicados": 0
     },
     {
       "mes": "2025-01",
@@ -121,7 +133,8 @@
       "sha256": "90ee75701a69374926af0400d204f3280baed0e3c1a1f97d9e6c0b283757125a",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 380184
+      "registros": 380184,
+      "duplicados": 0
     },
     {
       "mes": "2025-02",
@@ -130,7 +143,8 @@
       "sha256": "f52f13f59eb2f1517e05c72f0a3d3d70c5b0fa6b86626c7325e8ca3b15ff74f8",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 372529
+      "registros": 372529,
+      "duplicados": 0
     },
     {
       "mes": "2025-03",
@@ -139,7 +153,8 @@
       "sha256": "e5aa1b5d197f294022d3f0ff1b55bf553fcbdb697b50d43deaddf8dca36fed64",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 405110
+      "registros": 405110,
+      "duplicados": 0
     },
     {
       "mes": "2025-04",
@@ -148,7 +163,8 @@
       "sha256": "630e637d6611aadc67aad321edcd541361220473bddf8e34ecba46c0e29d7341",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 366193
+      "registros": 366193,
+      "duplicados": 0
     },
     {
       "mes": "2025-05",
@@ -157,7 +173,8 @@
       "sha256": "e0a744412a1e840c1d24c24269565a123b35739c0bac494b9c0f53ba0a2c43c2",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 395891
+      "registros": 395891,
+      "duplicados": 0
     },
     {
       "mes": "2025-06",
@@ -166,7 +183,8 @@
       "sha256": "063e3523db00c90899f08fb134c4c382667eb0e4d8b6358890d426409c6f4c9e",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 356611
+      "registros": 356611,
+      "duplicados": 0
     },
     {
       "mes": "2025-07",
@@ -175,7 +193,8 @@
       "sha256": "a71a9e2a629ff91b021f57e302958e64fa545678d6373aaf0fed62dfc7bebd29",
       "encoding": "latin-1",
       "formato_fecha": "iso",
-      "registros": 368186
+      "registros": 368186,
+      "duplicados": 0
     },
     {
       "mes": "2025-08",
@@ -184,7 +203,8 @@
       "sha256": "382e62f3eb878e13faf4c93d031c8efcf765c392b3402d27b264613f9ff4a56d",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 374727
+      "registros": 374727,
+      "duplicados": 0
     },
     {
       "mes": "2025-09",
@@ -193,7 +213,8 @@
       "sha256": "218bed1587a70ec5fc5e8589a04783532301f19c55acd3633fa219c96860e720",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 376789
+      "registros": 376789,
+      "duplicados": 0
     },
     {
       "mes": "2025-10",
@@ -202,7 +223,8 @@
       "sha256": "505d9b8b59f65fa223f7889189b74b9fe167c9dda11c7e7053536a360c611370",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 420064
+      "registros": 420064,
+      "duplicados": 0
     },
     {
       "mes": "2025-11",
@@ -211,7 +233,8 @@
       "sha256": "f5c4f1b0c0842339dfdfaac756607314bdf5b64d17cde58d754f5a5a2e1a5fbe",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 380328
+      "registros": 380328,
+      "duplicados": 0
     },
     {
       "mes": "2025-12",
@@ -220,14 +243,15 @@
       "sha256": "b9fbb7386666ac3d452e3d3ef40ab443c39eef349cd9c97207230371e1d2d001",
       "encoding": "utf-8",
       "formato_fecha": "iso",
-      "registros": 335420
+      "registros": 335420,
+      "duplicados": 0
     }
   ],
   "nomenclatura": {
-    "archivo": "data/raw/mensuales/nomenclatura_2026_09.csv",
-    "url": "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_09.csv",
-    "sha256": "206e45fe633922b634d858142fa21e6fd9f4c421b6435c02980ef290cc2df90d",
-    "registros": 484
+    "archivo": "data/raw/mensuales/nomenclatura_2026_10.csv",
+    "url": "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_10.csv",
+    "sha256": "2da38dd60dcc74ccb95eb8ed1572e107cf5af44dfa6c5a4fbfa4e30f94ef7f3e",
+    "registros": 470
   },
   "consolidado": {
     "archivo": "data/interim/mibici_2024_2025.csv",

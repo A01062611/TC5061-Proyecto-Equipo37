@@ -74,7 +74,7 @@ ARCHIVOS_VIAJES = {
     "2026-09": (131825, "datos_abiertos_2026_09.csv"),
     "2026-10": (133188, "datos_abiertos_2026_10.csv"),
 }
-NOMENCLATURA = (1118, "nomenclatura_2026_09.csv")
+NOMENCLATURA = (1118, "nomenclatura_2026_10.csv")
 
 COLUMNAS = [
     "Viaje_Id", "Usuario_Id", "Genero", "Anio_de_nacimiento",
@@ -260,7 +260,7 @@ def ingesta(
         "rango": {"desde": meses[0], "hasta": meses[-1]},
         "viajes_mensuales": mensuales,
         "nomenclatura": {"archivo": ruta_relativa(nom), "url": url_de(*NOMENCLATURA), "sha256": sha256_archivo(nom),
-                         "registros": len(pd.read_csv(nom))},
+                         "registros": len(pd.read_csv(nom, encoding="latin-1"))},
         "consolidado": {"archivo": ruta_relativa(salida), "sha256": version, "registros": total, "columnas": COLUMNAS},
     }
     manifiesto_path.parent.mkdir(parents=True, exist_ok=True)

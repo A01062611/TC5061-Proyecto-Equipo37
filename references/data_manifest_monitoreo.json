@@ -58,10 +58,10 @@
     }
   ],
   "nomenclatura": {
-    "archivo": "data/raw/mensuales/nomenclatura_2026_09.csv",
-    "url": "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_09.csv",
-    "sha256": "206e45fe633922b634d858142fa21e6fd9f4c421b6435c02980ef290cc2df90d",
-    "registros": 484
+    "archivo": "data/raw/mensuales/nomenclatura_2026_10.csv",
+    "url": "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_10.csv",
+    "sha256": "2da38dd60dcc74ccb95eb8ed1572e107cf5af44dfa6c5a4fbfa4e30f94ef7f3e",
+    "registros": 470
   },
   "consolidado": {
     "archivo": "data/interim/mibici_2026_06_10.csv",

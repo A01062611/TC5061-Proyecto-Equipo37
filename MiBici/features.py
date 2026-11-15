@@ -93,7 +93,7 @@ def cargar_estaciones(path: Path = STATIONS_CSV) -> pd.DataFrame:
     la capacidad Cₛ (`dpcapacity`) define qué significa "vacía" y "llena" y acota
     el inventario reconstruido; la ubicación entra como feature de la estación.
     """
-    return pd.read_csv(path)
+    return pd.read_csv(path, encoding="latin-1")
 
 
 def particion(dia: pd.Series, params: dict) -> np.ndarray:
