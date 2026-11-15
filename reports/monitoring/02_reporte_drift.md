@@ -12,6 +12,12 @@ De las 470 estaciones del periodo actual, 101 no existen en la referencia (220,1
 | Solo existentes | 794,480 | 369 | 11 / 23 | 48% | No (casi) |
 | Solo nuevas | 220,140 | 101 | 18 / 23 | 78% | Sí |
 
+Las capturas del reporte de Evidently muestran el resumen que produce la herramienta para cada subconjunto: sin drift de conjunto en estaciones existentes (11 de 23 columnas, 0.478, apenas bajo el umbral de 0.5) y con drift de conjunto en las nuevas (18 de 23, 0.783).
+
+![Figura A. Resumen de drift de Evidently, estaciones existentes. Fuente: `drift_report_existentes.html`.](../evidently/figuras/evidently_drift_existentes.jpg)
+
+![Figura B. Resumen de drift de Evidently, estaciones nuevas. Las distribuciones de `frac_lleno_7d`, `frac_vacio_7d` y `lon` cambian de forma visible. Fuente: `drift_report_nuevas.html`.](../evidently/figuras/evidently_drift_nuevas.jpg)
+
 Con todas las estaciones juntas, el drift parece pequeño (4 variables: `frac_vacio_7d`, `frac_lleno_7d`, `C` y `lon`). Es engañoso: el drift fuerte de las estaciones nuevas se diluye porque 78% de las filas son de estaciones existentes. Al separarlas, aparecen dos fenómenos distintos, uno leve en las estaciones existentes y uno fuerte en las nuevas (figura 1).
 
 ![Figura 1. Score de drift por variable, estaciones existentes y nuevas. La línea punteada es el umbral de Evidently (0.1). Fuente: `drift_summary_existentes.json` y `drift_summary_nuevas.json`.](../evidently/figuras/drift_por_variable.png)
