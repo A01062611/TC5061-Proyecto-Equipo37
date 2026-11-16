@@ -193,6 +193,10 @@ Todas las corridas se lanzan con `mlflow run` desde la raíz, con el servidor le
 | `ingest` | Descarga y consolida los datos (`dataset.py`) | `desde`, `hasta` |
 | `ingest_monitoreo` | Descarga y consolida el periodo de monitoreo, 2026-06 a 2026-10 (`dataset.py monitoreo`) | — |
 | `monitoring` | Genera los conjuntos de monitoreo de P2 con la predicción del champion (`monitoring/datasets.py`) | — |
+| `drift` | Drift con Evidently (todas, existentes y nuevas), desempeño del champion, importancia y figuras | `tau` (0.15) |
+| `ab_test` | Compara `@champion` contra `@challenger` en la ventana A/B (`monitoring/ab_test.py`) | — |
+| `ct_policy` | Decide si reentrenar y si promover al challenger (`monitoring/ct_policy.py`) | — |
+| `monitor` | Todo el monitoreo en orden: `ingest_monitoreo`, `monitoring`, `drift`, `ab_test` y `ct_policy` | `tau` (0.15) |
 | `train` | Entrena un modelo de una pregunta, o el modelo por defecto de todas | `question` (`p1`, `p2`, `p3` o `all`), `model` y sus hiperparámetros |
 | `search` | Búsqueda de hiperparámetros con nested runs: una corrida padre y una hija por combinación | `question`, `model` |
 | `main` | Ingesta, features y `train` con `question=all` | `question` |
@@ -590,10 +594,12 @@ Se monitorea el modelo P2 en producción (`mibici-equipo37-p2-riesgo@champion`).
 
 | Conjunto | Periodo (día operativo) | Filas | Estaciones (nuevas) | Uso |
 |---|---|---:|---:|---|
-| `reference` | 2024-01-01 a 2025-06-30 | 3,261,440 | 371 (0) | Partición train del champion. Base del reporte de drift |
-| `current` | 2026-07-01 a 2026-10-30 | 1,014,620 | 470 (101) | Periodo de producción. Lado actual del reporte de drift |
-| `retrain` | 2026-07-01 a 2026-08-31 | 512,160 | 468 (100) | Solo para entrenar el challenger |
-| `ab_eval` | 2026-09-01 a 2026-10-30 | 502,460 | 469 (101) | Solo para el A/B. Ningún modelo la ve al entrenar |
+| `reference` | 2024-01-01 a 2025-06-30 | 3,244,300 | 369 (0) | Partición train del champion. Base del reporte de drift |
+| `current` | 2026-07-01 a 2026-10-30 | 1,014,040 | 470 (101) | Periodo de producción. Lado actual del reporte de drift |
+| `retrain` | 2026-07-01 a 2026-08-31 | 511,780 | 468 (100) | Solo para entrenar el challenger |
+| `ab_eval` | 2026-09-01 a 2026-10-30 | 502,260 | 469 (101) | Solo para el A/B. Ningún modelo la ve al entrenar |
+
+Las cifras son con la nomenclatura de octubre de 2026 (470 estaciones). Con ella, `reference` tiene 17,140 filas menos que la partición train con la que se entrenó el champion, porque 14 estaciones salieron del catálogo.
 
 Julio a octubre coincide en temporada con meses que sí están en el entrenamiento (julio a diciembre de 2024), así que el drift que aparezca se puede atribuir al paso del tiempo y a los cambios en la red, no a la estacionalidad.
 
@@ -627,6 +633,34 @@ Para comprobar los conjuntos (mismo esquema, fechas dentro de su periodo, estaci
 ```bash
 python -m pytest tests/test_monitoring_datasets.py
 ```
+
+### Política de Continuous Training
+
+`MiBici/monitoring/ct_policy.py` lee los resultados del drift (`reports/evidently/`) y del A/B (`reports/ab_test/resultado_ab.json`), y escribe la decisión en `reports/monitoring/ct_decision.json`. Los umbrales están en `UMBRALES`, al inicio del módulo, y son una propuesta que el equipo puede ajustar.
+
+**Reentrenar.** Hay dos niveles:
+
+| Nivel | Disparador | Umbral |
+|---|---|---|
+| Urgente: el champion ya se degradó en las estaciones existentes | Caída de F2 macro contra la validación | más de 0.02 |
+| | Recall de vaciado o de llenado | menos de 0.80 |
+| | Fracción de la importancia del modelo en variables con drift | más de 30% |
+| Programado: los datos ya no representan la red | Estaciones nuevas: fracción de filas y drift ponderado | 20% de las filas y más de 30% |
+| | Antigüedad de los datos de entrenamiento | más de 12 meses |
+
+El drift se pondera por la importancia de cada variable (caída de F2 al permutarla), no por el número de variables. El criterio de Evidently (más de 50% de variables con drift) se reporta solo como alerta, porque cambia de No a Sí con una sola variable de importancia mínima.
+
+**Promover.** Se repite la regla escrita antes del A/B (`reports/ab_test/politica_evaluacion.md`): F2 macro mayor, límite inferior del IC 95% de la diferencia mayor que 0 y ninguna clase de riesgo pierde más de 0.02 de recall.
+
+Todo el monitoreo, de la ingesta a la decisión, se corre con un solo comando. Necesita `data/processed/p2/`, el servidor de MLflow con los aliases `champion` y `challenger`, y `MLFLOW_TRACKING_URI` exportada en la terminal:
+
+```bash
+mlflow run . -e monitor --experiment-name mibici-equipo37 --env-manager local
+mlflow run . -e ct_policy --experiment-name mibici-equipo37 --env-manager local   # solo la decisión
+python -m pytest tests/test_ct_policy.py
+```
+
+Resultado actual: **reentrenar sí, programado** (las estaciones nuevas son el 22% de las filas y concentran drift en el 89% de la importancia; los datos de entrenamiento tienen 16 meses) y **no promover al challenger** (ΔF2 macro −0.0038, IC 95% [−0.0057, −0.0018]). Ningún disparador urgente está activo.
 
 ## Flujo de trabajo con Git
 
