@@ -636,7 +636,7 @@ python -m pytest tests/test_monitoring_datasets.py
 
 ### Política de Continuous Training
 
-`MiBici/monitoring/ct_policy.py` lee los resultados del drift (`reports/evidently/`) y del A/B (`reports/ab_test/resultado_ab.json`), y escribe la decisión en `reports/monitoring/ct_decision.json`. Los umbrales están en `UMBRALES`, al inicio del módulo, y se fijaron antes de ver los resultados.
+`MiBici/monitoring/ct_policy.py` lee los resultados del drift (`reports/evidently/`) y del A/B (`reports/ab_test/resultado_ab.json`), y escribe la decisión en `reports/monitoring/ct_decision.json`. Los umbrales están en `UMBRALES`, al inicio del módulo, y son una propuesta que el equipo puede ajustar.
 
 **Reentrenar.** Hay dos niveles:
 

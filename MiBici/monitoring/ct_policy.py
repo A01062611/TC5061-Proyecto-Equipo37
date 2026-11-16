@@ -1,7 +1,6 @@
 """Política de Continuous Training de P2: reentrenar, promover al challenger
 
-Lee lo que generan los demás pasos del monitoreo y aplica umbrales fijados antes de ver los
-resultados:
+Lee lo que generan los demás pasos del monitoreo y aplica los umbrales de `UMBRALES`:
 
 - `reports/evidently/drift_vs_importancia.csv` (drift por variable y su importancia),
 - `reports/evidently/classification_summary.json` (desempeño del champion con etiquetas reales),
