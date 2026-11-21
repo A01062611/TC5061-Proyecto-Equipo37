@@ -15,6 +15,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Servidor de MLflow](#servidor-de-mlflow)
 - [Ingesta de datos](#ingesta-de-datos)
 - [Features](#features)
+- [Flujo del experimento](#flujo-del-experimento)
 - [Experimentos con el MLflow Project](#experimentos-con-el-mlflow-project)
 - [Reproducir desde un clon limpio](#reproducir-desde-un-clon-limpio)
 - [Model Registry](#model-registry)
@@ -183,6 +184,38 @@ python -m MiBici.features         # P2 y P3
 python -m MiBici.features p2      # solo P2 → data/processed/p2/ (tabla.parquet, s0_por_estacion.csv, info.json)
 python -m MiBici.features p3      # solo P3 → data/processed/p3_station_profile.csv
 ```
+
+## Flujo del experimento
+
+Orden para correr el experimento completo, desde la raíz del repositorio y con la [instalación](#instalación) hecha. En este flujo los runs se escriben directo en `mlflow.db`, sin servidor; la interfaz se abre al final para revisarlos. Si ya cargaste `.env` en la terminal, la variable de abajo lo reemplaza.
+
+```bash
+export MLFLOW_TRACKING_URI=sqlite:///$PWD/mlflow.db
+```
+
+**1. Ingesta.** Descarga y consolida los datos; los pasos siguientes los necesitan:
+
+```bash
+mlflow run . -e ingest --experiment-name mibici-equipo37 --env-manager local
+```
+
+**2. Búsqueda de hiperparámetros de cada pregunta.** Cada `search` crea un run padre y un run hijo por combinación del grid:
+
+```bash
+mlflow run . -e search -P question=p1 --experiment-name mibici-equipo37 --env-manager local
+mlflow run . -e search -P question=p2 --experiment-name mibici-equipo37 --env-manager local
+mlflow run . -e search -P question=p3 --experiment-name mibici-equipo37 --env-manager local
+```
+
+Sin `-P model`, cada pregunta busca sobre su modelo por defecto: Random Forest en P1 (la única búsqueda disponible), `hist_gradient_boosting` en P2 (unos 20 minutos) y `pca_kmeans` en P3. Para buscar sobre otro modelo se agrega `-P model=<modelo>` (ver [Modelos por pregunta](#modelos-por-pregunta)).
+
+**3. Revisar los resultados en la interfaz de MLflow:**
+
+```bash
+mlflow ui --backend-store-uri sqlite:///$PWD/mlflow.db --port 5000
+```
+
+La interfaz queda en http://localhost:5000. En el experimento `mibici-equipo37`, cada búsqueda aparece como un run padre con sus runs hijos (en P2 y P3, `<pregunta> - <modelo> - search`; en P1, `P1 - Busqueda RF` dentro de `P1 - comparacion de candidatos`); se pueden filtrar con la etiqueta `stage_of_work = "search"` y comparar las métricas de validación.
 
 ## Experimentos con el MLflow Project
 
