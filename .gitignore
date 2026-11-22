@@ -45,3 +45,6 @@ venv/
 
 # MLflow local store
 mlflow.db*
+
+# Include load test results
+!reports/load_test/**/*.csv

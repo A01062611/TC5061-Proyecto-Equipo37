@@ -1,0 +1,2 @@
+# Entorno aislado para las pruebas de carga (make loadtest), Python 3.10
+locust==2.46.0

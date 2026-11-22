@@ -6,6 +6,14 @@ PROJECT_NAME = tc5061-proyecto-equipo37
 PYTHON_VERSION = 3.10
 PYTHON_INTERPRETER = python
 
+# Prueba de carga; se sobrescriben así: make loadtest LOAD_USERS=150 LOAD_TIME=5m
+LOCUST ?= locust
+LOAD_HOST ?= http://localhost:8000
+LOAD_USERS ?= 50
+LOAD_RATE ?= $(shell r=$$(($(LOAD_USERS) / 10)); echo $$((r > 0 ? r : 1)))
+LOAD_TIME ?= 5m
+LOAD_OUT ?= reports/load_test/local
+
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
@@ -65,6 +73,25 @@ create_environment:
 .PHONY: data
 data: requirements
 	$(PYTHON_INTERPRETER) MiBici/dataset.py
+
+
+## Run Locust load test against the API and record docker stats
+.PHONY: loadtest
+loadtest:
+	@mkdir -p "$(LOAD_OUT)"
+	@curl -fsS -m 5 "$(LOAD_HOST)/health" > /dev/null || \
+		{ echo "La API no responde en $(LOAD_HOST). Ejecuta: docker compose up -d --build --wait"; exit 1; }
+	@while true; do \
+		docker stats --no-stream \
+			--format "$$(date +%T),{{.Name}},{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}}" \
+			$$(docker compose ps -q); \
+	done > "$(LOAD_OUT)/stats_$(LOAD_USERS)u.csv" & \
+	STATS_PID=$$!; \
+	trap 'kill $$STATS_PID 2>/dev/null' EXIT; \
+	$(LOCUST) -f tests/load/locustfile.py --headless --host "$(LOAD_HOST)" \
+		-u $(LOAD_USERS) -r $(LOAD_RATE) -t $(LOAD_TIME) --only-summary \
+		--csv "$(LOAD_OUT)/run_$(LOAD_USERS)u" --csv-full-history \
+		--html "$(LOAD_OUT)/run_$(LOAD_USERS)u.html"
 
 
 #################################################################################

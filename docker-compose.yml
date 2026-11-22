@@ -47,6 +47,8 @@ services:
       MODEL_NAME: mibici-equipo37-p2-riesgo
       MLFLOW_TRACKING_URI: http://mlflow:5000
       UVICORN_WORKERS: "${UVICORN_WORKERS:-1}"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
     depends_on:
       mlflow:
         condition: service_healthy
