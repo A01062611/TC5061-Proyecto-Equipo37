@@ -30,7 +30,7 @@ jobs:
           python -m pip install pytest==9.1.1 httpx==0.28.1
 
       - name: Ejecutar pruebas de API
-        run: python -m pytest tests/test_api.py -v
+        run: python -m pytest tests/test_api.py --noconftest -v
 
   build:
     name: Construir imagen Docker
