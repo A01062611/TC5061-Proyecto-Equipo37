@@ -23,6 +23,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Calidad de datos, pruebas integradas y seguridad (Actividad 7)](#calidad-de-datos-pruebas-integradas-y-seguridad-actividad-7)
 - [API REST con Podman (Actividad 8)](#api-rest-con-podman-actividad-8)
 - [Monitoreo: drift y A/B testing (Entregable 8)](#monitoreo-drift-y-ab-testing-entregable-8)
+- [Pruebas de carga y monitoreo de recursos](#pruebas-de-carga-y-monitoreo-de-recursos)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
@@ -694,6 +695,24 @@ python -m pytest tests/test_ct_policy.py
 ```
 
 Resultado actual: **reentrenar sí, programado** (las estaciones nuevas son el 22% de las filas y concentran drift en el 89% de la importancia; los datos de entrenamiento tienen 16 meses) y **no promover al challenger** (ΔF2 macro −0.0038, IC 95% [−0.0057, −0.0018]). Ningún disparador urgente está activo.
+
+## Pruebas de carga y monitoreo de recursos
+
+Las pruebas simulan usuarios que llaman a `POST /predict_p2/` con Locust, mientras `docker stats` registra CPU y memoria. Con la API levantada:
+
+```bash
+python3 -m venv ~/.venvs/locust
+~/.venvs/locust/bin/pip install -r requirements-load.txt
+source ~/.venvs/locust/bin/activate
+
+docker compose up -d --build --wait
+make loadtest                                # 50 usuarios, 5 minutos
+make loadtest LOAD_USERS=150 LOAD_TIME=2m    # otro escenario
+```
+
+Los resultados se guardan en `reports/load_test/local/`; con `LOAD_OUT` se elige otra carpeta. Para probar con más recursos: `API_CPUS=2 UVICORN_WORKERS=2 docker compose up -d --force-recreate --wait api`.
+
+Resultado: la API atiende 50 usuarios (unas 38 peticiones por segundo) dentro del objetivo de p95 menor a 500 ms y menos de 1% de errores. Con 150 usuarios ninguna configuración lo cumple, y pasar de 1 a 2 CPUs duplica la capacidad máxima, de 35 a 75 peticiones por segundo. El análisis y las gráficas están en [`reports/load_test/README.md`](reports/load_test/README.md).
 
 ## Flujo de trabajo con Git
 

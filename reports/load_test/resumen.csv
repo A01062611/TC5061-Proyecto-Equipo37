@@ -1,0 +1,7 @@
+configuracion,usuarios,peticiones,rps,p50_ms,p95_ms,p99_ms,max_ms,error_pct,cpu_prom_pct,cpu_p95_pct,mem_max_mib,cumple_objetivo
+"1 CPU, 1 worker",10,2324,7.8,14,32,47,149,0.0,11.0,23.8,206.4,True
+"1 CPU, 1 worker",50,11263,37.6,31,210,440,1157,0.0,57.4,73.6,212.7,True
+"1 CPU, 1 worker",150,10544,35.3,3600,4300,4500,4981,0.0,98.1,102.2,216.5,False
+"2 CPUs, 2 workers",10,2333,7.8,13,29,40,77,0.0,10.8,24.1,414.3,True
+"2 CPUs, 2 workers",50,11632,38.9,14,59,90,188,0.0,54.2,69.5,412.8,True
+"2 CPUs, 2 workers",150,22340,74.6,670,1700,2000,2539,0.0,188.3,204.6,427.6,False
