@@ -32,6 +32,7 @@ def test_health():
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
+    assert r.json()["model_version"]
 
 
 def test_prediccion_valida():
@@ -40,6 +41,7 @@ def test_prediccion_valida():
     body = r.json()
     assert body["prediction"] in (0, 1, 2)
     assert body["message"]
+    assert body["model_version"]
 
 
 @pytest.mark.parametrize("entrada, clase", [(VACIADO, 1), (LLENADO, 2)])
@@ -80,4 +82,6 @@ def test_modelo_no_cargado_503(monkeypatch):
     monkeypatch.setattr(main, "model", None)
     r = client.post("/predict_p2/", json=EJEMPLO)
     assert r.status_code == 503
-    assert client.get("/health").json()["status"] == "error"
+    h = client.get("/health")
+    assert h.status_code == 503
+    assert h.json()["status"] == "error"

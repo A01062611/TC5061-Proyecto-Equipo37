@@ -43,6 +43,20 @@ def registry_uri() -> str:
     return f"models:/{model_name()}@{os.getenv('MODEL_ALIAS', DEFAULT_MODEL_ALIAS)}"
 
 
+def model_version() -> str:
+    """Versión del modelo en el Registry: ``MODEL_VERSION`` > metadatos del paquete > ``desconocida``."""
+    env = os.getenv("MODEL_VERSION")
+    if env:
+        return env
+    meta = model_dir() / "registered_model_meta"
+    if meta.is_file():
+        for line in meta.read_text().splitlines():
+            key, _, value = line.partition(":")
+            if key.strip() == "model_version":
+                return value.strip().strip("'\"")
+    return "desconocida"
+
+
 def load_model() -> mlflow.pyfunc.PyFuncModel:
     """Carga el modelo empacado si existe; si no, lo recupera del Registry."""
     local = model_dir()

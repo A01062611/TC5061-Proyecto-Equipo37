@@ -1,0 +1,72 @@
+# Levanta API de inferencia (P2) + servidor MLflow con un solo comando:
+#   docker compose up -d --build --wait
+# Variables en .env (ver .env.example); todas tienen valor por defecto.
+name: mibici-equipo37
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.17.1
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/data/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
+      --workers 1
+      --allowed-hosts "mlflow:5000,localhost:5000,127.0.0.1:5000"
+    environment:
+      # Sin ejecutor de jobs: no se usan y sus workers Huey ocupan ~1 GB
+      MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "${MLFLOW_CPUS:-0.5}"
+          memory: "${MLFLOW_MEM_LIMIT:-1g}"
+
+  api:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: mibici-equipo37-api:local
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      # El modelo campeón va embebido en la imagen; el Registry es solo respaldo.
+      MODEL_NAME: mibici-equipo37-p2-riesgo
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      UVICORN_WORKERS: "${UVICORN_WORKERS:-1}"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      # /health responde 503 si el modelo no cargó
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPUS:-1.0}"
+          memory: "${API_MEM_LIMIT:-1g}"
+
+networks:
+  backend:
+
+volumes:
+  mlflow-data:

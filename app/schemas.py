@@ -85,10 +85,12 @@ class P2Response(BaseModel):
         json_schema_extra={
             "examples": [{
                 "prediction": 0,
-                "message": "La estación estará normal por las siguientes 2 hrs, no requiere acción"
+                "message": "La estación estará normal por las siguientes 2 hrs, no requiere acción",
+                "model_version": "1"
             }]
         },
     )
 
     prediction: int = Field(ge=0, le=2, description="0 normal, 1 vacía, 2 llena")
     message: str = Field(description="Mensaje explicativo del resultado de la predicción")
+    model_version: str = Field(description="Versión del modelo del Registry que generó la predicción")
