@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import mlflow
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ PROJ_ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_MODEL_NAME = "mibici-equipo37-p2-riesgo"
 DEFAULT_MODEL_ALIAS = "champion"
+DEFAULT_TAU = 0.15
 
 
 def model_name() -> str:
@@ -41,6 +43,11 @@ def registry_uri() -> str:
     if version:
         return f"models:/{model_name()}/{version}"
     return f"models:/{model_name()}@{os.getenv('MODEL_ALIAS', DEFAULT_MODEL_ALIAS)}"
+
+
+def tau() -> float:
+    """Umbral de decisión: ``MODEL_TAU`` si existe, si no el del champion."""
+    return float(os.getenv("MODEL_TAU", DEFAULT_TAU))
 
 
 def model_version() -> str:
@@ -100,6 +107,17 @@ def prepare_frame(model: mlflow.pyfunc.PyFuncModel, data: pd.DataFrame) -> pd.Da
     return frame
 
 
-def predict(model: mlflow.pyfunc.PyFuncModel, rows: list[dict[str, Any]]) -> list[Any]:
-    """Firma de predicción para la API: lista de dicts (una fila por registro) -> lista de predicciones."""
-    return model.predict(prepare_frame(model, pd.DataFrame(rows))).tolist()
+def aplicar_umbral(proba: np.ndarray, umbral: float) -> np.ndarray:
+    """Regla de P2, igual a ``pred_umbral`` del entrenamiento: la clase de riesgo más probable
+    (1 vaciado, 2 llenado) si su probabilidad llega al umbral; si no, 0 (normal)."""
+    riesgo = proba[:, 1:].argmax(1) + 1
+    return np.where(proba[:, 1:].max(1) >= umbral, riesgo, 0)
+
+
+def predict(model: mlflow.pyfunc.PyFuncModel, rows: list[dict[str, Any]]) -> list[int]:
+    """Firma de predicción para la API: lista de dicts (una fila por registro) -> lista de clases."""
+    estimador = model.get_raw_model()
+    if list(estimador.classes_) != [0, 1, 2]:
+        raise ValueError(f"Clases inesperadas en el modelo: {list(estimador.classes_)}")
+    proba = estimador.predict_proba(prepare_frame(model, pd.DataFrame(rows)))
+    return aplicar_umbral(proba, tau()).tolist()

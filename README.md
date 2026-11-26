@@ -19,6 +19,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [Experimentos con el MLflow Project](#experimentos-con-el-mlflow-project)
 - [Reproducir desde un clon limpio](#reproducir-desde-un-clon-limpio)
 - [Model Registry](#model-registry)
+- [Model Card de P2](#model-card-de-p2)
 - [Pruebas automatizadas de P1](#pruebas-automatizadas-de-p1)
 - [Calidad de datos, pruebas integradas y seguridad (Actividad 7)](#calidad-de-datos-pruebas-integradas-y-seguridad-actividad-7)
 - [API REST con Podman (Actividad 8)](#api-rest-con-podman-actividad-8)
@@ -336,6 +337,10 @@ import mlflow
 
 modelo = mlflow.pyfunc.load_model("models:/mibici-equipo37-p2-riesgo@champion")
 ```
+
+## Model Card de P2
+
+La ficha del modelo en producción, [`reports/model_card_p2.md`](reports/model_card_p2.md), reúne en un solo documento su uso previsto y fuera de alcance, los datos, el desempeño por periodo y por tipo de estación, el linaje en el Registry, la operación, las consideraciones éticas y las limitaciones.
 ## Pruebas automatizadas de P1
 
 Para verificar el correcto funcionamiento del modelo de regresión de P1, se implementaron pruebas unitarias utilizando PyTest. Estas pruebas permiten validar el procesamiento de datos, la generación de características, la división temporal y la reproducibilidad del modelo.
@@ -508,6 +513,8 @@ El modelo seleccionado es `mibici-equipo37-p2-riesgo` (P2), registrado en el **M
 
 El cargador (`app/model_loader.py`) busca primero el modelo en la ruta definida por `MODEL_DIR` (en la imagen, `/app/models/mibici-equipo37-p2-riesgo`). Si no está disponible, puede cargarlo desde el Registry mediante `MLFLOW_TRACKING_URI`, utilizando la versión indicada por `MODEL_VERSION` o el alias definido por `MODEL_ALIAS` (por defecto, `champion`).
 
+**Regla de decisión.** La API no usa la clase más probable, sino la misma regla con la que se evaluó el modelo: predice vaciado o llenado si la probabilidad de esa clase llega al umbral τ, y normal si ninguna lo alcanza. El umbral por defecto es el del champion, 0.15, y se cambia con la variable `MODEL_TAU`, por ejemplo al servir otra versión: el challenger v2 usa 0.575.
+
 Para exportar nuevamente el modelo, en un entorno que tenga las dependencias del proyecto y acceso al servidor de MLflow:
 
 ```bash
@@ -530,7 +537,7 @@ HTTP/1.1 200 OK
 ```
 
 ```json
-{"status":"ok"}
+{"status":"ok","model_version":"1","tau":0.15}
 ```
 
 La verificación interna del contenedor también puede ejecutarse con:
@@ -768,22 +775,7 @@ make test
 
 ### Pruebas de carga y consumo de recursos
 
-El escenario de [Locust](tests/load/locustfile.py) realiza peticiones a `POST /predict_p2/`, mientras que `docker stats` registra CPU y memoria. Para instalar las dependencias de Locust en un entorno virtual y ejecutar una prueba local:
-
-```bash
-python3 -m venv ~/.venvs/locust
-~/.venvs/locust/bin/pip install -r requirements-load.txt
-source ~/.venvs/locust/bin/activate
-make loadtest LOAD_USERS=50 LOAD_TIME=5m
-```
-
-El sistema debe estar levantado previamente con Compose. Para una prueba con más usuarios:
-
-```bash
-make loadtest LOAD_USERS=150 LOAD_TIME=5m
-```
-
-Las salidas locales se guardan en `reports/load_test/local/` (CSV, HTML y consumo de recursos). Los resultados de las corridas del equipo con 10, 50 y 150 usuarios, las gráficas y las limitaciones experimentales están en [`reports/load_test/README.md`](reports/load_test/README.md).
+El escenario de [Locust](tests/load/locustfile.py) realiza peticiones a `POST /predict_p2/`, mientras que `docker stats` registra CPU y memoria. La instalación y los comandos están en [Pruebas de carga y monitoreo de recursos](#pruebas-de-carga-y-monitoreo-de-recursos). Los resultados de las corridas del equipo con 10, 50 y 150 usuarios, las gráficas y las limitaciones experimentales están en [`reports/load_test/README.md`](reports/load_test/README.md).
 
 ### Resultados y análisis FinOps
 
