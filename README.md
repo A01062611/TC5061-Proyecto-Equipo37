@@ -24,6 +24,7 @@ Proyecto de la materia de MLOps (TC5061, Maestría en Inteligencia Artificial Ap
 - [API REST con Podman (Actividad 8)](#api-rest-con-podman-actividad-8)
 - [Monitoreo: drift y A/B testing (Entregable 8)](#monitoreo-drift-y-ab-testing-entregable-8)
 - [Pruebas de carga y monitoreo de recursos](#pruebas-de-carga-y-monitoreo-de-recursos)
+- [Operación, CI/CD y análisis FinOps (Entregable 7)](#operación-cicd-y-análisis-finops-entregable-7)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Integrantes](#integrantes)
 
@@ -713,6 +714,82 @@ make loadtest LOAD_USERS=150 LOAD_TIME=2m    # otro escenario
 Los resultados se guardan en `reports/load_test/local/`; con `LOAD_OUT` se elige otra carpeta. Para probar con más recursos: `API_CPUS=2 UVICORN_WORKERS=2 docker compose up -d --force-recreate --wait api`.
 
 Resultado: la API atiende 50 usuarios (unas 38 peticiones por segundo) dentro del objetivo de p95 menor a 500 ms y menos de 1% de errores. Con 150 usuarios ninguna configuración lo cumple, y pasar de 1 a 2 CPUs duplica la capacidad máxima, de 35 a 75 peticiones por segundo. El análisis y las gráficas están en [`reports/load_test/README.md`](reports/load_test/README.md).
+
+## Operación, CI/CD y análisis FinOps (Entregable 7)
+
+Esta entrega integra la API de inferencia del modelo P2 y un servidor MLflow mediante Docker Compose, automatiza las pruebas y la construcción de la imagen con GitHub Actions y documenta el comportamiento del servicio bajo carga y su costo estimado de operación. El modelo P2 está empaquetado en la imagen de la API; durante una predicción normal no es necesario consultar MLflow.
+
+### Levantar el sistema con Docker Compose
+
+**Requisitos:** Docker Engine o Docker Desktop con Compose V2 y los archivos del repositorio, incluido el modelo exportado en `models/mibici-equipo37-p2-riesgo/`. Ejecutar los comandos desde la raíz del proyecto.
+
+```bash
+docker compose up -d --build --wait
+```
+
+Compose inicia la API (`http://localhost:8000`) y el servidor MLflow (`http://localhost:5000`). Utiliza la red `backend`, un volumen persistente `mlflow-data` y verificaciones de salud para ambos servicios. La API espera a que MLflow esté saludable antes de iniciarse.
+
+Para verificar la ejecución:
+
+```bash
+docker compose ps
+curl -i http://localhost:8000/health
+```
+
+El endpoint `/health` devuelve HTTP 200 cuando el modelo está cargado correctamente y HTTP 503 cuando no está disponible. Para probar una predicción con las 23 características de entrada, utilizar la petición JSON documentada en [Predicción: POST /predict_p2/](#predicción-post-predict_p2). La documentación interactiva se encuentra en `http://localhost:8000/docs`.
+
+Se pueden personalizar los puertos, límites de CPU/memoria y número de workers mediante las variables documentadas en [`.env.example`](.env.example), sin modificar el archivo Compose. Para crear un archivo local de configuración:
+
+```bash
+cp .env.example .env
+```
+
+No subir `.env` ni credenciales al repositorio. Para detener el sistema sin borrar el volumen de MLflow:
+
+```bash
+docker compose down
+```
+
+### Pruebas automatizadas y CI/CD
+
+El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) se ejecuta en cada `push` y `pull_request` y consta de tres jobs:
+
+1. **Pruebas API:** configura Python 3.10, usa caché de `pip` y ejecuta `python -m pytest tests/test_api.py --noconftest -v`.
+2. **Construir imagen Docker:** utiliza Docker Buildx y caché de capas para construir la imagen con `Containerfile`, sin publicarla en un registro.
+3. **Validar despliegue y predicción:** comprueba la configuración de Compose, levanta los contenedores, verifica `/health` y ejecuta una predicción real; después detiene y elimina los contenedores y volúmenes creados en CI.
+
+Los resultados del workflow se consultan en [GitHub Actions](https://github.com/A01062611/TC5061-Proyecto-Equipo37/actions). El workflow valida la integración y construcción, **no realiza un despliegue automático en producción**.
+
+Para ejecutar las pruebas generales del proyecto localmente, con las dependencias correspondientes instaladas:
+
+```bash
+make test
+```
+
+### Pruebas de carga y consumo de recursos
+
+El escenario de [Locust](tests/load/locustfile.py) realiza peticiones a `POST /predict_p2/`, mientras que `docker stats` registra CPU y memoria. Para instalar las dependencias de Locust en un entorno virtual y ejecutar una prueba local:
+
+```bash
+python3 -m venv ~/.venvs/locust
+~/.venvs/locust/bin/pip install -r requirements-load.txt
+source ~/.venvs/locust/bin/activate
+make loadtest LOAD_USERS=50 LOAD_TIME=5m
+```
+
+El sistema debe estar levantado previamente con Compose. Para una prueba con más usuarios:
+
+```bash
+make loadtest LOAD_USERS=150 LOAD_TIME=5m
+```
+
+Las salidas locales se guardan en `reports/load_test/local/` (CSV, HTML y consumo de recursos). Los resultados de las corridas del equipo con 10, 50 y 150 usuarios, las gráficas y las limitaciones experimentales están en [`reports/load_test/README.md`](reports/load_test/README.md).
+
+### Resultados y análisis FinOps
+
+En las mediciones del equipo, 50 usuarios produjeron aproximadamente 38 solicitudes por segundo, con una latencia p95 de 210 ms para 1 CPU y 59 ms para 2 CPUs. Ambas configuraciones cumplieron el objetivo establecido de p95 menor a 500 ms y errores inferiores a 1%. Con 150 usuarios, ninguna cumplió la latencia objetivo. El uso de CPU fue el principal factor limitante; la memoria de la API se mantuvo por debajo de 450 MiB en las pruebas realizadas.
+
+El documento [`reports/finops/analisis_finops.md`](reports/finops/analisis_finops.md) presenta la estimación del costo de infraestructura por inferencia, las fuentes de precios consultadas, la comparación de escenarios, los supuestos del cálculo y las recomendaciones de optimización. **Los costos son estimaciones basadas en mediciones locales y precios públicos de referencia; no son gastos reales ni resultados de un despliegue en la nube.**
 
 ## Flujo de trabajo con Git
 
