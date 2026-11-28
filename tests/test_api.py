@@ -1,9 +1,11 @@
 """Pruebas de la API de P2 con TestClient: predicción válida, errores 422 y modelo no cargado."""
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main
+from app.model_loader import DEFAULT_TAU, aplicar_umbral
 from app.schemas import P2Prediction
 
 client = TestClient(main.app)
@@ -33,6 +35,30 @@ def test_health():
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
     assert r.json()["model_version"]
+    assert r.json()["tau"] == DEFAULT_TAU
+
+
+def test_regla_de_umbral():
+    """Riesgo si la clase de riesgo más probable llega a τ, aunque `normal` sea la más probable."""
+    proba = np.array([
+        # normal es la más probable, pero vaciado llega a τ
+        [0.80, 0.16, 0.04],  
+        # llenado justo en τ
+        [0.80, 0.05, 0.15],  
+        # ninguna llega a τ
+        [0.90, 0.06, 0.04],  
+        [0.10, 0.30, 0.60],
+    ])
+    np.testing.assert_array_equal(aplicar_umbral(proba, 0.15), [1, 2, 0, 2])
+
+
+@pytest.mark.parametrize("umbral, esperado", [("1.01", 0), ("0", 1)])
+def test_prediccion_usa_umbral(monkeypatch, umbral, esperado):
+    """La API aplica τ: con τ > 1 nunca hay riesgo; con τ = 0 siempre hay riesgo."""
+    monkeypatch.setenv("MODEL_TAU", umbral)
+    r = client.post("/predict_p2/", json=VACIADO)
+    assert r.status_code == 200
+    assert r.json()["prediction"] == esperado
 
 
 def test_prediccion_valida():

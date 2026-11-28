@@ -5,7 +5,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from app.model_loader import load_model, model_version, predict
+from app.model_loader import load_model, model_version, predict, tau
 from app.schemas import P2Prediction, P2Response
 
 logger = logging.getLogger(__name__)
@@ -46,4 +46,4 @@ def predict_p2(schema: P2Prediction):
 def health_check():
     if model is None:
         return JSONResponse(status_code=503, content={"status": "error", "message": "Modelo no cargado"})
-    return {"status": "ok", "model_version": version}
+    return {"status": "ok", "model_version": version, "tau": tau()}

@@ -58,7 +58,7 @@ La memoria se mantiene estable durante cada corrida, sin señales de fuga en est
 
 ## Recomendaciones
 
-1. **Para cargas de hasta 50 usuarios, usar 2 CPUs y 2 workers.** Una sola CPU cumple el objetivo, pero con menos margen ante picos.
+1. **Para cargas de hasta 50 usuarios, 1 CPU y 1 worker son suficientes.** Cumplen el objetivo con la mitad del costo por inferencia (ver [análisis FinOps](../finops/analisis_finops.md)). Conviene subir a 2 CPUs y 2 workers solo si se necesita más margen ante picos, porque bajan el p95 de 210 a 59 ms.
 2. **Para 150 usuarios, escalar a unas 4 CPUs y 4 workers, con 2 GiB de memoria.** Es una proyección a partir de unas 37 peticiones por segundo por CPU y 200 MiB por worker, y debe confirmarse con una prueba.
 3. **Definir un límite de concurrencia o una respuesta 503 ante saturación.** Hoy las peticiones se acumulan en cola en lugar de rechazarse, por lo que la latencia crece sin generar errores.
 
